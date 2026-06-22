@@ -1,10 +1,10 @@
 [package]
 name = "esp32-rtv"
 version = "0.1.0"
-authors = ["esp"]
-edition = "2021"
-resolver = "2"
-rust-version = "1.82"
+authors = ["rectalogic@rectalogic.com"]
+edition = "2024"
+resolver = "3"
+rust-version = "1.93"
 
 [[bin]]
 name = "esp32-rtv"
@@ -25,3 +25,7 @@ embassy-time = { version = "0.5", features = ["generic-queue-8"] }
 
 [build-dependencies]
 embuild = "0.33"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "espressif/esp_new_jpeg", version = "^1.0.0" }
+bindings_header = "components/esp_new_jpeg/bindgen.h"
