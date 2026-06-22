@@ -1,0 +1,4 @@
+{
+    "name": "esp-idf-hal",
+    "image": "espressif/idf-rust:esp32_latest"
+}
