@@ -44,6 +44,10 @@ impl McuBuffer {
             size,
         })
     }
+
+    fn as_slice(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.ptr.cast_const(), self.size) }
+    }
 }
 
 impl Drop for McuBuffer {
@@ -119,7 +123,7 @@ where
         })
     }
 
-    // Pass a callback to receive each McuBuffer
+    // XXX Pass a callback to receive each McuBuffer
     pub fn decode(&mut self) -> Result<(), MjpegError> {
         let jpeg_data = self.mjpeg.next().ok_or(MjpegError::StreamExhausted)?;
         let mut jpeg_io = jpeg_dec_io_t {
