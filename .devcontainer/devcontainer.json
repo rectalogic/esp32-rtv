@@ -1,6 +1,6 @@
 {
     "name": "esp-idf-hal",
-    "image": "espressif/idf-rust:all_latest",
+    "image": "espressif/idf-rust:esp32s3_latest",
     "mounts": [
         {
             "source": "${localEnv:HOME}/.gitconfig",

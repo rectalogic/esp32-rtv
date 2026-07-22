@@ -30,3 +30,4 @@ embuild = "0.33"
 [[package.metadata.esp-idf-sys.extra_components]]
 remote_component = { name = "espressif/esp_new_jpeg", version = "^1.0.0" }
 bindings_header = "components/esp_new_jpeg/bindgen.h"
+bindings_module = "esp_new_jpeg"
