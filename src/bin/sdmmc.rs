@@ -39,37 +39,6 @@ fn main() -> anyhow::Result<()> {
 
     // Keep it around or else it will be dropped and unmounted
     let _mounted_fatfs = MountedFatfs::mount(Fatfs::new_sdcard(0, sd_card_driver)?, "/sdcard", 4)?;
-
-    // let content = b"Hello, world!";
-
-    // {
-    //     let mut file = File::create("/sdcard/test.txt")?;
-
-    //     info!("File {file:?} created");
-
-    //     file.write_all(content).expect("Write failed");
-
-    //     info!("File {file:?} written with {content:?}");
-
-    //     file.seek(std::io::SeekFrom::Start(0)).expect("Seek failed");
-
-    //     info!("File {file:?} seeked");
-    // }
-
-    // {
-    //     let mut file = File::open("/sdcard/test.txt")?;
-
-    //     info!("File {file:?} opened");
-
-    //     let mut file_content = String::new();
-
-    //     file.read_to_string(&mut file_content).expect("Read failed");
-
-    //     info!("File {file:?} read: {file_content}");
-
-    //     assert_eq!(file_content.as_bytes(), content);
-    // }
-
     {
         let directory = read_dir("/sdcard")?;
 
