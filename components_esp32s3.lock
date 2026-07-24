@@ -22,8 +22,54 @@ dependencies:
     source:
       type: idf
     version: 5.5.3
+  thorrak/esp_bus:
+    component_hash: 605ccb6d50f533093df2ebae17cf82e21d79d3e2f1add5afe2c78e9620ab94a0
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    targets:
+    - esp32
+    - esp32s2
+    - esp32s3
+    - esp32c2
+    - esp32c3
+    - esp32c6
+    - esp32h2
+    version: 1.0.3
+  thorrak/esp_wifi_config:
+    component_hash: 203543767fd3a7c87545f4a78d4b05e72ae6b45453704f175c91f07d9d4d143e
+    dependencies:
+    - name: espressif/network_provisioning
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=6.0
+      version: ^1.0.0
+    - name: idf
+      require: private
+      version: '>=5.4'
+    - name: thorrak/esp_bus
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^1.0.3
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    targets:
+    - esp32
+    - esp32s2
+    - esp32s3
+    - esp32c3
+    - esp32c6
+    - esp32h2
+    version: 0.1.0
 direct_dependencies:
 - espressif/esp_new_jpeg
-manifest_hash: 22cae91fe8081e93e8e75fc216547e2649bb00f1a953969dee6d4112e75c9a42
+- thorrak/esp_wifi_config
+manifest_hash: ba24d790ebb678df72682af30b0f478adef7930f9550fd00c3da28c5670f80ba
 target: esp32s3
 version: 2.0.0

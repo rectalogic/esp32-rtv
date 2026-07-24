@@ -618,6 +618,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "es8311"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbf031db4dbb8876a09dd5506ac5df00463fa0e03b59aa42302c9c018ff1a9ac"
+dependencies = [
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "esp-idf-hal"
 version = "0.46.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -690,6 +699,7 @@ dependencies = [
  "embassy-time",
  "embedded-graphics",
  "embuild",
+ "es8311",
  "esp-idf-svc",
  "log",
  "mipidsi",
