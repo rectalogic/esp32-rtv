@@ -27,6 +27,7 @@ anyhow = "1.0.104"
 mipidsi = "0.10.0"
 embedded-graphics = "0.8.2"
 static_cell = "2.1.1"
+es8311 = "0.1.1"
 
 [build-dependencies]
 embuild = "0.33"
@@ -35,3 +36,8 @@ embuild = "0.33"
 remote_component = { name = "espressif/esp_new_jpeg", version = "^1.0.0" }
 bindings_header = "components/esp_new_jpeg/bindgen.h"
 bindings_module = "esp_new_jpeg"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "thorrak/esp_wifi_config", version = "^0.1.0" }
+bindings_header = "components/esp_wifi_config/bindgen.h"
+bindings_module = "esp_wifi_config"
