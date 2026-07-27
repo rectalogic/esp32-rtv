@@ -1,0 +1,127 @@
+devices:
+  # 1. Backlight Power Control
+  - name: lcd_backlight
+    type: power_ctrl
+    sub_type: gpio
+    peripherals:
+      - name: gpio_lcd_backlight
+        active_level: 1
+
+  # 2. Audio Amplifier Power Control (GPIO1)
+  # The audio codec will reference this to automatically enable the amp when playing audio.
+  - name: audio_power_ctrl
+    type: power_ctrl
+    sub_type: gpio
+    peripherals:
+      - name: gpio_audio_amp
+        active_level: 1
+
+  # 3. LCD Display (ILI9341)
+  - name: display_lcd
+    type: display_lcd
+    sub_type: spi
+    chip: ili9341
+    power_ctrl_device: lcd_backlight
+    dependencies:
+      espressif/esp_lcd_ili9341: "^1"
+    config:
+      x_max: 240
+      y_max: 320
+      io_spi_config:
+        cs_gpio_num: 10
+        dc_gpio_num: 46
+        pclk_hz: 40000000
+      lcd_panel_config:
+        reset_gpio_num: -1
+        bits_per_pixel: 16
+    peripherals:
+      - name: spi_lcd
+
+  # 4. Capacitive Touch (FT6336G)
+  - name: lcd_touch
+    chip: ft6336
+    type: lcd_touch
+    sub_type: i2c
+    version: 1.0.0
+    dependencies:
+      espressif/esp_lcd_touch_ft5x06: "^1"
+    config:
+      io_i2c_config:
+        lcd_cmd_bits: 8
+        lcd_param_bits: 8
+        scl_speed_hz: 400000
+      touch_config:
+        x_max: 240
+        y_max: 320
+        rst_gpio_num: 18
+        int_gpio_num: 17
+        levels:
+          reset: 0
+          interrupt: 0
+        flags:
+          swap_xy: false
+          mirror_x: false
+          mirror_y: false
+    peripherals:
+      - name: i2c_shared
+        # FT6336G 7-bit address is 0x38. Left-shifted (including R/W bit): 0x70
+        i2c_addr: [0x70]
+
+  # 5. SD Card (SDMMC / SDIO)
+  - name: sd_card
+    type: fs_fat
+    sub_type: sdmmc
+    version: 1.0.0
+    config:
+      mount_point: "/sdcard"
+      vfs_config:
+        format_if_mount_failed: false
+        max_files: 5
+        allocation_unit_size: 16384
+    sub_config:
+      slot: SDMMC_HOST_SLOT_1
+      frequency: SDMMC_FREQ_HIGHSPEED
+      bus_width: 4
+      slot_flags: SDMMC_SLOT_FLAG_INTERNAL_PULLUP
+    pins:
+      clk: 38
+      cmd: 40
+      d0: 39
+      d1: 41
+      d2: 48
+      d3: 47
+
+  # 6. Audio Codec (ES8311)
+  - name: audio_codec
+    chip: es8311
+    type: audio_codec
+    version: 1.0.0
+    power_ctrl_device: audio_power_ctrl # Automatically toggles GPIO1 when audio is active
+    dependencies:
+      espressif/es8311: "^1"
+    config:
+      adc_enabled: true
+      dac_enabled: true
+      mclk_enabled: true
+      adc_max_channel: 1
+      adc_channel_mask: "1"
+      dac_max_channel: 2
+      dac_channel_mask: "11"
+    peripherals:
+      - name: i2c_shared
+        # ES8311 7-bit address is 0x18. Left-shifted (including R/W bit): 0x30
+        i2c_addr: [0x30]
+      - name: i2s_audio_out
+        clk_src: 0
+
+  # 7. Onboard WS2812 RGB LED
+  - name: led_strip
+    type: led_strip
+    chip: ws2812
+    sub_type: rmt
+    version: 1.0.0
+    config:
+      strip_gpio_num: 42
+      max_leds: 1
+      led_model: LED_MODEL_WS2812
+      color_component_format: LED_STRIP_COLOR_COMPONENT_FMT_GRB

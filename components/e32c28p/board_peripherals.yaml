@@ -1,0 +1,57 @@
+peripherals:
+  # SPI bus for ILI9341 LCD
+  - name: spi_lcd
+    type: spi
+    role: master
+    config:
+      spi_bus_config:
+        spi_port: SPI2_HOST
+        mosi_io_num: 11
+        miso_io_num: 13
+        sclk_io_num: 12
+        quadwp_io_num: -1
+        quadhd_io_num: -1
+        max_transfer_sz: 32000
+
+  # I2C bus shared by Touch (FT6336) and Audio Codec (ES8311)
+  - name: i2c_shared
+    type: i2c
+    role: master
+    config:
+      port: 0
+      pins:
+        sda: 16
+        scl: 15
+
+  # I2S peripheral for Audio Codec (ES8311)
+  # Handles full-duplex audio using standard I2S mode.
+  - name: i2s_audio_out
+    type: i2s
+    role: master
+    format: std-out
+    config:
+      port: 0
+      sample_rate_hz: 48000
+      data_bit_width: 16
+      pins:
+        mclk: 4
+        bclk: 5
+        ws: 7
+        dout: 8  # docs show 6, but should be 8
+        din: 8
+
+  # GPIO for Backlight Control
+  - name: gpio_lcd_backlight
+    type: gpio
+    role: io
+    config:
+      pin: 45
+      mode: GPIO_MODE_OUTPUT
+
+  # GPIO for Audio Amplifier Enable
+  - name: gpio_audio_amp
+    type: gpio
+    role: io
+    config:
+      pin: 1
+      mode: GPIO_MODE_OUTPUT

@@ -1,0 +1,6 @@
+version: 1
+board: e32c28p
+chip: esp32s3
+vendor: "e32c28p"
+name: "2.8inch ESP32-S3 Display"
+description: "Generic 2.8 inch ESP32-S3 board with ILI9341 display and FT6336 touch."
