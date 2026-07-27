@@ -8,7 +8,6 @@ devices:
         active_level: 1
 
   # 2. Audio Amplifier Power Control (GPIO1)
-  # The audio codec will reference this to automatically enable the amp when playing audio.
   - name: audio_power_ctrl
     type: power_ctrl
     sub_type: gpio
@@ -64,10 +63,10 @@ devices:
           mirror_y: false
     peripherals:
       - name: i2c_shared
-        # FT6336G 7-bit address is 0x38. Left-shifted (including R/W bit): 0x70
         i2c_addr: [0x70]
 
   # 5. SD Card (SDMMC / SDIO)
+  # FIX: 'sub_config' and 'pins' are now nested inside 'config'
   - name: sd_card
     type: fs_fat
     sub_type: sdmmc
@@ -78,43 +77,61 @@ devices:
         format_if_mount_failed: false
         max_files: 5
         allocation_unit_size: 16384
-    sub_config:
-      slot: SDMMC_HOST_SLOT_1
-      frequency: SDMMC_FREQ_HIGHSPEED
-      bus_width: 4
-      slot_flags: SDMMC_SLOT_FLAG_INTERNAL_PULLUP
-    pins:
-      clk: 38
-      cmd: 40
-      d0: 39
-      d1: 41
-      d2: 48
-      d3: 47
+      sub_config:
+        slot: SDMMC_HOST_SLOT_1
+        frequency: SDMMC_FREQ_HIGHSPEED
+        bus_width: 4
+        slot_flags: SDMMC_SLOT_FLAG_INTERNAL_PULLUP
+      pins:
+        clk: 38
+        cmd: 40
+        d0: 39
+        d1: 41
+        d2: 48
+        d3: 47
 
-  # 6. Audio Codec (ES8311)
-  - name: audio_codec
+  # 6. Audio Codec (ES8311) - DAC (Output)
+  # FIX: Split full-duplex into separate logical devices
+  - name: audio_codec_dac
     chip: es8311
     type: audio_codec
     version: 1.0.0
-    power_ctrl_device: audio_power_ctrl # Automatically toggles GPIO1 when audio is active
+    power_ctrl_device: audio_power_ctrl
     dependencies:
       espressif/es8311: "^1"
     config:
-      adc_enabled: true
+      adc_enabled: false
       dac_enabled: true
       mclk_enabled: true
-      adc_max_channel: 1
-      adc_channel_mask: "1"
       dac_max_channel: 2
       dac_channel_mask: "11"
     peripherals:
       - name: i2c_shared
-        # ES8311 7-bit address is 0x18. Left-shifted (including R/W bit): 0x30
-        i2c_addr: [0x30]
-      - name: i2s_audio_out
+        address: 0x30
+      - name: i2s_audio
         clk_src: 0
 
-  # 7. Onboard WS2812 RGB LED
+  # 7. Audio Codec (ES8311) - ADC (Input)
+  - name: audio_codec_adc
+    chip: es8311
+    type: audio_codec
+    version: 1.0.0
+    power_ctrl_device: audio_power_ctrl
+    dependencies:
+      espressif/es8311: "^1"
+    config:
+      adc_enabled: true
+      dac_enabled: false
+      mclk_enabled: true
+      adc_max_channel: 1
+      adc_channel_mask: "1"
+    peripherals:
+      - name: i2c_shared
+        address: 0x30
+      - name: i2s_audio
+        clk_src: 0
+
+  # 8. Onboard WS2812 RGB LED
   - name: led_strip
     type: led_strip
     chip: ws2812

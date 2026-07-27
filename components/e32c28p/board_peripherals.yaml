@@ -24,11 +24,9 @@ peripherals:
         scl: 15
 
   # I2S peripheral for Audio Codec (ES8311)
-  # Handles full-duplex audio using standard I2S mode.
-  - name: i2s_audio_out
+  - name: i2s_audio
     type: i2s
     role: master
-    format: std-out
     config:
       port: 0
       sample_rate_hz: 48000
