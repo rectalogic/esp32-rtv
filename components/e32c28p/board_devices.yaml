@@ -82,13 +82,13 @@ devices:
         frequency: SDMMC_FREQ_HIGHSPEED
         bus_width: 4
         slot_flags: SDMMC_SLOT_FLAG_INTERNAL_PULLUP
-      pins:
-        clk: 38
-        cmd: 40
-        d0: 39
-        d1: 41
-        d2: 48
-        d3: 47
+        pins:
+          clk: 38
+          cmd: 40
+          d0: 39
+          d1: 41
+          d2: 48
+          d3: 47
 
   # 6. Audio Codec (ES8311) - DAC (Output)
   # FIX: Split full-duplex into separate logical devices
