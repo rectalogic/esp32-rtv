@@ -1,5 +1,0 @@
-dependencies:
-  idf: ">=5.5"
-  espressif/esp_board_manager:
-    version: "^1"
-    require: public

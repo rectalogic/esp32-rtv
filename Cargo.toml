@@ -33,5 +33,19 @@ embassy-time = { version = "0.5", features = ["generic-queue-8"] }
 [build-dependencies]
 embuild = "0.33"
 
+[package.metadata.esp-idf-sys]
+esp_idf_sdkconfig_defaults = ["sdkconfig.defaults", "components/gen_bmgr_codes/board_manager.defaults"]
+
 [[package.metadata.esp-idf-sys.extra_components]]
 remote_component = { name = "espressif/esp_board_manager", version = "*" }
+
+[[package.metadata.esp-idf-sys.extra_components]]
+component_dirs = "components/e32c28p"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+component_dirs = "components/gen_bmgr_codes"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+component_dirs = "components/video_player"
+bindings_header = "components/video_player/bindings.h"
+bindings_module = "video_player"
