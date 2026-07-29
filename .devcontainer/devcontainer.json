@@ -1,10 +1,19 @@
 {
-    "name": "esp-idf-hal",
-    "image": "espressif/idf-rust:esp32s3_latest",
+    "name": "esp32-rtv",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "remoteUser": "esp",
+    "runArgs": ["--privileged", "--group-add=dialout"],
     "mounts": [
         {
             "source": "${localEnv:HOME}/.gitconfig",
             "target": "/home/esp/.gitconfig",
+            "type": "bind"
+        },
+        {
+            "source": "${localEnv:HOME}/.codex",
+            "target": "/home/esp/.codex",
             "type": "bind"
         }
     ]
