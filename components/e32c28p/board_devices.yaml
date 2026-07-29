@@ -66,8 +66,7 @@ devices:
         i2c_addr: [0x70]
 
   # 5. SD Card (SDMMC / SDIO)
-  # FIX: 'sub_config' and 'pins' are now nested inside 'config'
-  - name: sd_card
+  - name: fs_sdcard
     type: fs_fat
     sub_type: sdmmc
     version: 1.0.0
