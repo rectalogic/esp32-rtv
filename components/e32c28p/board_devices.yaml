@@ -29,7 +29,10 @@ devices:
       io_spi_config:
         cs_gpio_num: 10
         dc_gpio_num: 46
+        spi_mode: 0
         pclk_hz: 40000000
+        lcd_cmd_bits: 8
+        lcd_param_bits: 8
       lcd_panel_config:
         reset_gpio_num: -1
         bits_per_pixel: 16
@@ -63,7 +66,7 @@ devices:
           mirror_y: false
     peripherals:
       - name: i2c_shared
-        i2c_addr: [0x70]
+        i2c_addr: [0x38]
 
   # 5. SD Card (SDMMC / SDIO)
   - name: fs_sdcard
