@@ -26,6 +26,9 @@ devices:
     config:
       x_max: 240
       y_max: 320
+      swap_xy: true
+      mirror_x: true
+      mirror_y: true
       io_spi_config:
         cs_gpio_num: 10
         dc_gpio_num: 46
