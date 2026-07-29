@@ -7,8 +7,8 @@ ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 RUN apt-get update \
-    && apt-get install -y git curl llvm-dev libclang-dev clang clangd unzip \
-    libusb-1.0-0 libssl-dev libudev-dev pkg-config \
+    && apt-get install -y git curl gcc clang clangd ninja-build unzip libudev-dev tar xz-utils \
+        libusb-1.0-0 libssl-dev pkg-config python3 python3-pip python3-venv libpython3-all-dev python3-virtualenv \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/library-scripts
 
 COPY <<'EOF' /entrypoint.sh
@@ -29,6 +29,10 @@ ENV PATH=${PATH}:/home/esp/.cargo/bin
 RUN ARCH=$(/home/esp/.cargo/bin/rustup show | grep "Default host" | sed -e 's/.* //') && \
     curl -L "https://github.com/esp-rs/espup/releases/latest/download/espup-${ARCH}" -o "/home/esp/.cargo/bin/espup" && \
     chmod u+x "/home/esp/.cargo/bin/espup" && \
+    curl -L "https://github.com/esp-rs/embuild/releases/latest/download/ldproxy-${ARCH}.zip" -o "/home/esp/.cargo/bin/ldproxy.zip" && \
+    unzip "/home/esp/.cargo/bin/ldproxy.zip" -d "/home/esp/.cargo/bin/" && \
+    rm "/home/esp/.cargo/bin/ldproxy.zip" && \
+    chmod u+x "/home/esp/.cargo/bin/ldproxy" && \
     curl -L "https://github.com/esp-rs/espflash/releases/latest/download/cargo-espflash-${ARCH}.zip" -o "/home/esp/.cargo/bin/cargo-espflash.zip" && \
     unzip "/home/esp/.cargo/bin/cargo-espflash.zip" -d "/home/esp/.cargo/bin/" && \
     rm "/home/esp/.cargo/bin/cargo-espflash.zip" && \
