@@ -94,7 +94,7 @@ devices:
 
   # 6. Audio Codec (ES8311) - DAC (Output)
   # FIX: Split full-duplex into separate logical devices
-  - name: audio_codec_dac
+  - name: audio_dac
     chip: es8311
     type: audio_codec
     version: 1.0.0
@@ -114,7 +114,7 @@ devices:
         clk_src: 0
 
   # 7. Audio Codec (ES8311) - ADC (Input)
-  - name: audio_codec_adc
+  - name: audio_adc
     chip: es8311
     type: audio_codec
     version: 1.0.0
