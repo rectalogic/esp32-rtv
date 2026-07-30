@@ -18,7 +18,7 @@ extern "C" {
  * @brief  Example playback configuration
  */
 #define VIDEO_PLAYER_PLAY_URL       "/sdcard/itysl.mp4"
-#define VIDEO_PLAYER_OUTPUT_VOLUME  60
+#define VIDEO_PLAYER_OUTPUT_VOLUME  80
 
 /**
  * @brief  Shared audio/video render output configuration for the example.
