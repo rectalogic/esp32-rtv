@@ -13,7 +13,7 @@ devices:
     sub_type: gpio
     peripherals:
       - name: gpio_audio_amp
-        active_level: 1
+        active_level: 0
 
   # 3. LCD Display (ILI9341)
   - name: display_lcd
@@ -98,7 +98,6 @@ devices:
           d3: 47
 
   # 6. Audio Codec (ES8311) - DAC (Output)
-  # FIX: Split full-duplex into separate logical devices
   - name: audio_dac
     chip: es8311
     type: audio_codec
