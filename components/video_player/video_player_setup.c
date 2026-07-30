@@ -63,6 +63,11 @@ static void video_player_reconfig_lcd(void)
         lcd_cfg.sub_cfg.dsi.dpi_config.num_fbs = 2;
 #endif  /* CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUB_DSI_SUPPORT */
     }
+    if (lcd_cfg.swap_xy) {
+        uint8_t w = lcd_cfg.lcd_width;
+        lcd_cfg.lcd_width  = lcd_cfg.lcd_height;
+        lcd_cfg.lcd_height = w;
+    }
     esp_board_device_override_config(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, &lcd_cfg, sizeof(dev_display_lcd_config_t));
     ESP_LOGI(TAG, "LCD configuration overridden");
 }

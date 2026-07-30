@@ -120,7 +120,7 @@ out:
 
 void run_player(void)
 {
-    esp_log_level_set("*", ESP_LOG_INFO);
+    // esp_log_level_set("*", ESP_LOG_INFO);
 
     ESP_LOGI(TAG, "[ 1 ] Mount SD card");
     if (mount_sdcard() != ESP_OK) {

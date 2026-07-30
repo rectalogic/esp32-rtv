@@ -7,4 +7,8 @@ fn main() {
     esp_idf_svc::log::EspLogger::initialize_default();
 
     log::info!("Hello, world!");
+
+    unsafe {
+        esp_idf_svc::sys::video_player::run_player();
+    }
 }
