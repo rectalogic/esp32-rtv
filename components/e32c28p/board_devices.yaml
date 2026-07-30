@@ -29,6 +29,7 @@ devices:
       swap_xy: true
       mirror_x: true
       mirror_y: true
+      invert_color: true
       io_spi_config:
         cs_gpio_num: 10
         dc_gpio_num: 46
@@ -39,6 +40,7 @@ devices:
       lcd_panel_config:
         reset_gpio_num: -1
         bits_per_pixel: 16
+        rgb_ele_order: LCD_RGB_ELEMENT_ORDER_BGR
     peripherals:
       - name: spi_lcd
 
