@@ -1,10 +1,14 @@
 {
     "lsp": {
-      "clangd": {
-           "binary": {
-             "path": "/usr/bin/clangd"
-           }
-         },
+        "clangd": {
+            "binary": {
+                "path": "/usr/bin/clangd",
+                "arguments": [
+                    // XXX need to change the directory when the hash changes
+                    "--compile-commands-dir=./target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-234e3018e0869ea7/out/build/"
+                ]
+            }
+        },
         "rust-analyzer": {
             "initialization_options": {
                 "cargo": {
