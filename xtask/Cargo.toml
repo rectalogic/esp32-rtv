@@ -6,5 +6,5 @@ license.workspace = true
 publish = false
 
 [dependencies]
-anyhow = "1.0.104"
+anyhow = { workspace = true }
 glob = "0.3.4"
