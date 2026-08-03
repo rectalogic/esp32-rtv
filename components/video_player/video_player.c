@@ -13,3 +13,22 @@ esp_err_t mount_sdcard(void)
     }
     return ret;
 }
+
+void unmount_sdcard(void)
+{
+    esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
+}
+
+esp_err_t mount_spiffs(void)
+{
+    esp_err_t ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init SPIFFS");
+    }
+    return ret;
+}
+
+void unmount_spiffs(void)
+{
+    esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+}

@@ -27,20 +27,6 @@ typedef struct {
     EventGroupHandle_t  evt;
 } player_evt_ctx_t;
 
-static esp_err_t mount_sdcard(void)
-{
-    esp_err_t ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init SD card");
-    }
-    return ret;
-}
-
-static void unmount_sdcard(void)
-{
-    esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
-}
-
 static esp_player_err_t player_event_cb(esp_player_event_msg_t *msg, void *ctx)
 {
     player_evt_ctx_t *event_ctx = (player_evt_ctx_t *)ctx;
@@ -120,16 +106,7 @@ out:
 
 void run_player(void)
 {
-    // esp_log_level_set("*", ESP_LOG_INFO);
-
-    ESP_LOGI(TAG, "[ 1 ] Mount SD card");
-    if (mount_sdcard() != ESP_OK) {
-        return;
-    }
-
     playback();
-
-    unmount_sdcard();
 
     ESP_LOGI(TAG, "video_player example finished");
 }
