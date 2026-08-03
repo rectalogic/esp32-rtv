@@ -33,7 +33,7 @@
 
 static const char *TAG = "VIDEO_PLAYER_SETUP";
 
-static void *s_video_render_hd = NULL;
+static esp_video_render_handle_t s_video_render = NULL;
 static esp_gmf_pool_handle_t s_video_pool = NULL;
 
 static esp_audio_render_handle_t s_audio_render = NULL;
@@ -380,7 +380,7 @@ static esp_player_err_t create_video_render(const video_render_settings_t *setti
         goto fail;
     }
 
-    s_video_render_hd = render;
+    s_video_render = render;
     ESP_LOGI(TAG, "Video render ready: %ux%u, out_format=0x%" PRIx32 "",
              (unsigned)lcd_cfg->lcd_width, (unsigned)lcd_cfg->lcd_height,
              (uint32_t)lcd_backend_cfg.out_format);
@@ -397,9 +397,9 @@ fail:
 
 static void destroy_video_render(void)
 {
-    if (s_video_render_hd) {
-        esp_video_render_destroy((esp_video_render_handle_t)s_video_render_hd);
-        s_video_render_hd = NULL;
+    if (s_video_render) {
+        esp_video_render_destroy((esp_video_render_handle_t)s_video_render);
+        s_video_render = NULL;
     }
     if (s_video_pool) {
         esp_gmf_pool_deinit(s_video_pool);
@@ -415,7 +415,7 @@ esp_player_err_t video_player_setup(const video_render_settings_t *render_settin
     if (render_settings == NULL || render_settings->video_fps == 0) {
         return ESP_PLAYER_ERR_INVALID_ARG;
     }
-    if (s_audio_render != NULL || s_video_render_hd != NULL) {
+    if (s_audio_render != NULL || s_video_render != NULL) {
         ESP_LOGE(TAG, "video_player_setup already called");
         return ESP_PLAYER_ERR_FAIL;
     }
@@ -445,7 +445,7 @@ esp_player_err_t video_player_new(esp_player_handle_t *player)
     }
     *player = NULL;
 
-    if (s_audio_render == NULL || s_video_render_hd == NULL) {
+    if (s_audio_render == NULL || s_video_render == NULL) {
         ESP_LOGE(TAG, "Call video_player_setup() first");
         return ESP_PLAYER_ERR_FAIL;
     }
@@ -459,7 +459,7 @@ esp_player_err_t video_player_new(esp_player_handle_t *player)
 
     esp_player_config_t player_cfg = ESP_PLAYER_CONFIG_DEFAULT();
     player_cfg.audio_render_hd = audio_stream;
-    player_cfg.video_render_hd = s_video_render_hd;
+    player_cfg.video_render_hd = s_video_render;
 
     if (esp_player_init(&player_cfg, player) != ESP_PLAYER_ERR_OK) {
         ESP_LOGE(TAG, "esp_player_init failed");
@@ -481,7 +481,7 @@ void video_player_delete(esp_player_handle_t player)
 
 void video_player_teardown(void)
 {
-    if (s_audio_render != NULL || s_video_render_hd != NULL) {
+    if (s_audio_render != NULL || s_video_render != NULL) {
         destroy_audio_render();
         destroy_video_render();
         unregister_media_defaults();
