@@ -34,9 +34,9 @@ typedef struct {
 } video_render_settings_t;
 
 #define VIDEO_RENDER_SETTINGS_DEFAULT()  {  \
-    .out_sample_rate     = 44100,           \
+    .out_sample_rate     = 16000,           \
     .out_bits_per_sample = 16,              \
-    .out_channels        = 2,               \
+    .out_channels        = 1,               \
     .video_fps           = 30,              \
 }
 
