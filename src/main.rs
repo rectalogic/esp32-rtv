@@ -1,4 +1,4 @@
-use esp32_rtv::{sdcard::SdCard, spiffs::Spiffs};
+use esp32_rtv::{sdcard::SdCard, spiffs::Spiffs, video_player::VideoPlayer};
 
 fn main() -> anyhow::Result<()> {
     // It is necessary to call this function once. Otherwise, some patches to the runtime
@@ -16,7 +16,8 @@ fn main() -> anyhow::Result<()> {
     }
 
     if let Ok(_sdcard) = SdCard::new() {
-        unsafe { esp_idf_svc::sys::video_player::run_player() };
+        let video_player = VideoPlayer::new()?;
+        video_player.play("/sdcard/itysl.mp4")?;
     }
 
     Ok(())

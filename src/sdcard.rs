@@ -1,19 +1,15 @@
-use std::ffi;
-
 use esp_idf_svc::sys::video_player::{mount_sdcard, unmount_sdcard};
-use esp_idf_svc::sys::{ESP_OK, esp_err_to_name};
+use esp_idf_svc::sys::{ESP_OK, esp_err_t};
 
 pub struct SdCard {
     _private: (),
 }
 
 impl SdCard {
-    pub fn new() -> anyhow::Result<Self> {
-        let result = unsafe { mount_sdcard() };
-        if result != ESP_OK {
-            return Err(anyhow::anyhow!("Failed to mount SD card: {:?}", unsafe {
-                ffi::CStr::from_ptr(esp_err_to_name(result))
-            }));
+    pub fn new() -> Result<Self, esp_err_t> {
+        let ret = unsafe { mount_sdcard() };
+        if ret != ESP_OK {
+            return Err(ret);
         }
         Ok(Self { _private: () })
     }

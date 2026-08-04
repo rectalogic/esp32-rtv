@@ -1,19 +1,15 @@
-use std::ffi;
-
 use esp_idf_svc::sys::video_player::{mount_spiffs, unmount_spiffs};
-use esp_idf_svc::sys::{ESP_OK, esp_err_to_name};
+use esp_idf_svc::sys::{ESP_OK, esp_err_t};
 
 pub struct Spiffs {
     _private: (),
 }
 
 impl Spiffs {
-    pub fn new() -> anyhow::Result<Self> {
-        let result = unsafe { mount_spiffs() };
-        if result != ESP_OK {
-            return Err(anyhow::anyhow!("Failed to mount SPIFFS: {:?}", unsafe {
-                ffi::CStr::from_ptr(esp_err_to_name(result))
-            }));
+    pub fn new() -> Result<Self, esp_err_t> {
+        let ret = unsafe { mount_spiffs() };
+        if ret != ESP_OK {
+            return Err(ret);
         }
         Ok(Self { _private: () })
     }
