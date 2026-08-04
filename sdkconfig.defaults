@@ -6,6 +6,13 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
 CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=4096
 
+# The Rust esp-idf-hal crate always compiles its legacy `i2c` module, which pulls the
+# legacy I2C driver (driver/i2c/i2c.c) into the link even though it is never used.
+# Its startup constructor then aborts because the new I2C driver (i2c_master, used by
+# esp_board_manager's periph_i2c) is also linked. This app never touches the legacy
+# I2C API, so skip that link-time conflict check.
+CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y
+
 # You might have to increase this further if you spawn your own Rust threads
 # that allocate large stack variables; or better yet - use
 # `std::thread::Builder::new().stack_size(XXX)` for spawning

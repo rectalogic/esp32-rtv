@@ -9,16 +9,6 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 0.5.3
-  espressif/es8311:
-    component_hash: 46b3117250344bb03f143d5e2becf81cfb111679fbd7b95cefc2d302d36cc393
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=4.4,<6.0'
-    source:
-      registry_url: https://components.espressif.com/
-      type: service
-    version: 1.0.0~1
   espressif/esp_asrc:
     component_hash: 83021b6888ba94966bb3a954d435ca031952ddb7f2b873886bd7a0da94bc1108
     dependencies:
@@ -253,7 +243,7 @@ dependencies:
     - esp32h4
     version: 1.0.2
   espressif/esp_player:
-    component_hash: 078fdc0016bc0b23b935030004247c94ab0725245fb86ee35f8a469a59016b52
+    component_hash: f53c8b5d75d0fa1467293148ff5efb50c0fda67b891185ca26e55a6307b88038
     dependencies:
     - matches:
       - if: $CONFIG{ESP_PLAYER_ENABLE_AUDIO} == True
@@ -306,7 +296,7 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.0.3
+    version: 1.0.4
   espressif/esp_video_codec:
     component_hash: a099580026841dc85398afb0526375368d5f61238cdb954f69998dcaa07bb9ed
     dependencies:
@@ -353,7 +343,7 @@ dependencies:
       type: service
     version: 1.0.0~1
   espressif/gmf_audio:
-    component_hash: b04b6559d2a1c1cbd66f5297c27a7aa75cecd44d2c5552b4030fd99f02442833
+    component_hash: 85aa484ce217fefa3b4e3694a06b22df5750b7d822679e336351233ad796d899
     dependencies:
     - name: espressif/esp_asrc
       registry_url: https://components.espressif.com
@@ -378,7 +368,7 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.0.0
+    version: 1.0.1
   espressif/gmf_core:
     component_hash: f242674fc224543cc8df3608730b039b3bc1fd7639741bfc4815d13df5a993fc
     dependencies: []
@@ -452,7 +442,6 @@ dependencies:
       type: idf
     version: 5.5.3
 direct_dependencies:
-- espressif/es8311
 - espressif/esp_audio_render
 - espressif/esp_board_manager
 - espressif/esp_lcd_ili9341
@@ -465,6 +454,6 @@ direct_dependencies:
 - espressif/gmf_io
 - espressif/gmf_video
 - espressif/media_lib_sal
-manifest_hash: 8bf7e02904c2a15a6f86a2e205ae39e549af12a9acd1730eb19eb4d759213581
+manifest_hash: 540d3bb198015726c55b67e4a7600d12078662b0a1bc052aa311d07153343eb7
 target: esp32s3
 version: 2.0.0

@@ -111,8 +111,6 @@ devices:
     type: audio_codec
     version: 1.0.0
     power_ctrl_device: audio_power_ctrl
-    dependencies:
-      espressif/es8311: "^1"
     config:
       adc_enabled: false
       dac_enabled: true
@@ -131,8 +129,6 @@ devices:
     type: audio_codec
     version: 1.0.0
     power_ctrl_device: audio_power_ctrl
-    dependencies:
-      espressif/es8311: "^1"
     config:
       adc_enabled: true
       dac_enabled: false
