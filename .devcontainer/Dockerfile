@@ -42,7 +42,7 @@ RUN ARCH=$(/home/esp/.cargo/bin/rustup show | grep "Default host" | sed -e 's/.*
     rm "/home/esp/.cargo/bin/espflash.zip" && \
     chmod u+x "/home/esp/.cargo/bin/espflash"
 
-RUN espup install --targets esp32s3 --export-file /home/esp/export-esp.sh --toolchain-version 1.93.0.0
+RUN espup install --targets esp32s3 --export-file /home/esp/export-esp.sh
 RUN echo "source /home/esp/export-esp.sh" >> ~/.bashrc
 
 # Create with esp user permissions so we can mount a named volume over it

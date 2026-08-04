@@ -5,7 +5,7 @@
                 "path": "/usr/bin/clangd",
                 "arguments": [
                     // XXX need to change the directory when the hash changes
-                    "--compile-commands-dir=./target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-234e3018e0869ea7/out/build/"
+                    "--compile-commands-dir=./target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-a445e79b671646ac/out/build/"
                 ]
             }
         },
