@@ -17,3 +17,6 @@ CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y
 # that allocate large stack variables; or better yet - use
 # `std::thread::Builder::new().stack_size(XXX)` for spawning
 CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
+
+# Memory-map the LittleFS video partition (joltwallet/littlefs).
+CONFIG_LITTLEFS_MMAP_PARTITION=y

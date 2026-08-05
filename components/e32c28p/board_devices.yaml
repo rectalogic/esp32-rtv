@@ -73,13 +73,16 @@ devices:
       - name: i2c_shared
         i2c_addr: [0x38]
 
-  - name: fs_spiffs
-    type: fs_spiffs
+  # Embedded Video Storage (LittleFS on flash, memory-mapped for cache-friendly reads)
+  - name: littlefs
+    type: littlefs
+    sub_type: flash
+    version: 1.0.0
     config:
-      base_path: "/spiffs"
-      partition_label: NULL
-      max_files: 5
-      format_if_mount_failed: false
+      vfs_config:
+        base_path: "/littlefs"
+        partition_label: "storage"
+        read_only: true
 
   # SD Card (SDMMC / SDIO)
   - name: fs_sdcard

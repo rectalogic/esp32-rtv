@@ -4,5 +4,5 @@
 
 esp_err_t mount_sdcard(void);
 void unmount_sdcard(void);
-esp_err_t mount_spiffs(void);
-void unmount_spiffs(void);
+esp_err_t mount_littlefs(void);
+void unmount_littlefs(void);

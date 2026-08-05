@@ -20,16 +20,16 @@ void unmount_sdcard(void)
     esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
 }
 
-esp_err_t mount_spiffs(void)
+esp_err_t mount_littlefs(void)
 {
-    esp_err_t ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+    esp_err_t ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_LITTLEFS);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init SPIFFS: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "Failed to init LittleFS: %s", esp_err_to_name(ret));
     }
     return ret;
 }
 
-void unmount_spiffs(void)
+void unmount_littlefs(void)
 {
-    esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+    esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_LITTLEFS);
 }

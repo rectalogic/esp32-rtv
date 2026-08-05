@@ -10,16 +10,20 @@ $ cargo xtask generate
 $ cargo build --release
 ```
 
-Building a SPIFFS filesystem with embedded videos:
+Building a LittleFS filesystem with embedded videos (memory-mapped for
+cache-friendly reads during playback):
 ```sh-session
-$ cargo xtask spiffsgen /path/to/videos
+$ cargo xtask littlefsgen /path/to/videos
 ```
 
 Flash from host with access to USB:
 ```sh-session
 $ cargo +stable xtask flash firmware
-$ cargo +stable xtask flash spiffs
+$ cargo +stable xtask flash littlefs
 ```
+
+The littlefs image (13.5 MB on flash) is written in 2 MiB chunks at 460800 baud
+so a dropped USB-Serial-JTAG link only loses one chunk - rerun to finish.
 
 # Development
 

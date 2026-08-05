@@ -1,4 +1,4 @@
-use esp32_rtv::{sdcard::SdCard, spiffs::Spiffs, video_player::VideoPlayer};
+use esp32_rtv::{littlefs::Littlefs, sdcard::SdCard, video_player::VideoPlayer};
 
 fn main() -> anyhow::Result<()> {
     // It is necessary to call this function once. Otherwise, some patches to the runtime
@@ -8,15 +8,18 @@ fn main() -> anyhow::Result<()> {
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    if let Ok(_spiffs) = Spiffs::new() {
-        for entry in std::fs::read_dir("/spiffs")? {
+    let video_player = VideoPlayer::new()?;
+
+    if let Ok(_littlefs) = Littlefs::new() {
+        for entry in std::fs::read_dir("/littlefs")? {
             let entry = entry?;
             log::info!("{:?}", entry.path());
         }
+
+        video_player.play("/littlefs/interstitial.mp4")?;
     }
 
     if let Ok(_sdcard) = SdCard::new() {
-        let video_player = VideoPlayer::new()?;
         video_player.play("/sdcard/itysl.mp4")?;
     }
 
