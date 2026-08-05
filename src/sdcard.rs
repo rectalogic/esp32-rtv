@@ -1,17 +1,13 @@
 use esp_idf_svc::sys::video_player::{mount_sdcard, unmount_sdcard};
-use esp_idf_svc::sys::{ESP_OK, esp_err_t};
+use esp_idf_svc::sys::{EspError, esp_result};
 
 pub struct SdCard {
     _private: (),
 }
 
 impl SdCard {
-    pub fn new() -> Result<Self, esp_err_t> {
-        let ret = unsafe { mount_sdcard() };
-        if ret != ESP_OK {
-            return Err(ret);
-        }
-        Ok(Self { _private: () })
+    pub fn new() -> Result<Self, EspError> {
+        esp_result!(unsafe { mount_sdcard() }, Self { _private: () })
     }
 }
 

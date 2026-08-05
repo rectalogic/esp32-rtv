@@ -1,17 +1,13 @@
 use esp_idf_svc::sys::video_player::{mount_spiffs, unmount_spiffs};
-use esp_idf_svc::sys::{ESP_OK, esp_err_t};
+use esp_idf_svc::sys::{EspError, esp_result};
 
 pub struct Spiffs {
     _private: (),
 }
 
 impl Spiffs {
-    pub fn new() -> Result<Self, esp_err_t> {
-        let ret = unsafe { mount_spiffs() };
-        if ret != ESP_OK {
-            return Err(ret);
-        }
-        Ok(Self { _private: () })
+    pub fn new() -> Result<Self, EspError> {
+        esp_result!(unsafe { mount_spiffs() }, Self { _private: () })
     }
 }
 
