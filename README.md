@@ -10,10 +10,9 @@ $ cargo xtask generate
 $ cargo build --release
 ```
 
-Building a LittleFS filesystem with embedded videos (memory-mapped for
-cache-friendly reads during playback):
+Building a LittleFS filesystem with embedded videos:
 ```sh-session
-$ cargo xtask littlefsgen /path/to/videos
+$ cargo xtask littlefs /path/to/videos
 ```
 
 Flash from host with access to USB:
@@ -21,9 +20,6 @@ Flash from host with access to USB:
 $ cargo +stable xtask flash firmware
 $ cargo +stable xtask flash littlefs
 ```
-
-The littlefs image (13.5 MB on flash) is written in 2 MiB chunks at 460800 baud
-so a dropped USB-Serial-JTAG link only loses one chunk - rerun to finish.
 
 # Development
 

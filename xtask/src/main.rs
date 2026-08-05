@@ -1,32 +1,11 @@
 use anyhow::Context;
+use fs_extra::dir::get_dir_content;
 use glob::glob;
 use std::{
     env, fs,
     path::{Path, PathBuf},
     process::Command,
 };
-
-/// Must match CONFIG_LITTLEFS_OBJ_NAME_LEN (default 64) in the littlefs Kconfig.
-const LITTLEFS_NAME_MAX: &str = "64";
-/// Hardcoded by the littlefs component: CONFIG_LITTLEFS_BLOCK_SIZE = 4096.
-const LITTLEFS_BLOCK_SIZE: &str = "4096";
-/// littlefs-python version pinned by the littlefs component
-/// (image-building-requirements.txt).
-const LITTLEFS_PYTHON_VERSION: &str = "0.15.0";
-/// littlefs partition offset, view with "espflash partition-table partitions.csv".
-const LITTLEFS_PARTITION_OFFSET: u64 = 0x310000;
-/// Default baud for the littlefs image transfer.
-///
-/// The board exposes the ESP32-S3's native USB-Serial-JTAG (e.g.
-/// /dev/cu.usbmodem*), which is prone to "Timeout while running FlashDeflData
-/// command" drops at the default 921600 baud once the write runs long enough.
-/// The image is ~13.5 MB on flash but only ~180 KB compressed (mostly 0xFF
-/// padding), so the failure is link reliability, not payload size. Override
-/// with the ESPFLASH_BAUD environment variable (also honored by espflash).
-const LITTLEFS_FLASH_BAUD: &str = "460800";
-/// The 13.5 MB image is written in chunks with a fresh espflash connection per
-/// chunk: a drop then only loses one small chunk instead of the whole image.
-const LITTLEFS_FLASH_CHUNK_SIZE: usize = 2 * 1024 * 1024; // 2 MiB
 
 fn main() -> anyhow::Result<()> {
     let mut args = env::args();
@@ -38,7 +17,7 @@ fn main() -> anyhow::Result<()> {
     match task.as_deref() {
         Some("generate") => generate(&workspace_root)?,
         Some("flash") => flash(args, &workspace_root)?,
-        Some("littlefsgen") => littlefsgen(args, &workspace_root)?,
+        Some("littlefs") => littlefs(args, &workspace_root)?,
         Some("monitor") => monitor(&workspace_root)?,
         _ => print_help(),
     }
@@ -53,9 +32,8 @@ generate
     generate esp_board_manager code in components/gen_bmgr_codes
 flash firmware|littlefs
     flash release firmware or target/littlefs.bin
-    (littlefs is written in 2 MiB chunks at 460800 baud for USB-Serial-JTAG
-    reliability; set ESPFLASH_BAUD to override the baud)
-littlefsgen <video-directory>
+    (single espflash write-bin; set ESPFLASH_BAUD to override the baud)
+littlefs <video-directory>
     build LittleFS filesystem image with embedded videos
 monitor
     monitor logs
@@ -64,39 +42,13 @@ monitor
 }
 
 fn generate(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
-    println!("==> Initializing ESP-IDF environment and fetching components...");
-    Command::new("cargo")
-        .current_dir(workspace_root.as_ref())
-        .args(["check", "--release"])
-        .status()
-        .context("`cargo check` failed")?;
-
+    ensure_espidf_components(workspace_root.as_ref())?;
     let python_path = find_python_path(workspace_root.as_ref())?;
 
-    let bmgr_script_glob = workspace_root.as_ref().join("target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-*/out/managed_components/espressif__esp_board_manager/gen_bmgr_config_codes.py");
-
-    let mut bmgr_script_paths: Vec<_> = glob(
-        bmgr_script_glob
-            .to_str()
-            .ok_or(anyhow::anyhow!("Failed to read BMGR glob pattern"))?,
-    )
-    .context("Failed to read BMGR glob pattern")?
-    .filter_map(Result::ok)
-    .collect();
-
-    if bmgr_script_paths.is_empty() {
-        panic!(
-            "BMGR script not found in target directory. Ensure `remote_component` is in Cargo.toml."
-        );
-    }
-
-    bmgr_script_paths.sort_by(|a, b| {
-        let time_a = fs::metadata(a).and_then(|m| m.modified()).ok();
-        let time_b = fs::metadata(b).and_then(|m| m.modified()).ok();
-        time_b.cmp(&time_a)
-    });
-
-    let bmgr_script = &bmgr_script_paths[0];
+    let bmgr_script = find_latest_espidf_path(
+        workspace_root.as_ref(),
+        "out/managed_components/espressif__esp_board_manager/gen_bmgr_config_codes.py",
+    )?;
     println!("==> Found BMGR script at: {}", bmgr_script.display());
 
     println!("==> Generating BMGR C code...");
@@ -119,90 +71,95 @@ fn generate(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
 
 fn flash(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     match args.next().as_deref() {
-        Some("firmware") => {
-            Command::new("espflash")
-                .current_dir(workspace_root.as_ref())
-                .args([
-                    "flash",
-                    "--monitor",
-                    "--chip",
-                    "esp32s3",
-                    "target/xtensa-esp32s3-espidf/release/esp32-rtv",
-                ])
-                .status()
-                .context("`espflash` firmware failed")?;
-            Ok(())
-        }
+        Some("firmware") => flash_firmware(workspace_root),
         Some("littlefs") => flash_littlefs(workspace_root),
         _ => Err(anyhow::anyhow!("specify `firmware` or `littlefs`")),
     }
 }
 
-fn flash_littlefs(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
-    let image = workspace_root.as_ref().join("target/littlefs.bin");
-    let data = fs::read(&image)
-        .context("Failed to read target/littlefs.bin; run `cargo xtask littlefsgen` first")?;
-    let chunks_dir = workspace_root.as_ref().join("target/littlefs-chunks");
-    fs::create_dir_all(&chunks_dir).context("Failed to create chunk dir")?;
-
-    let chunk_count = data.chunks(LITTLEFS_FLASH_CHUNK_SIZE).count();
-    let baud = env::var("ESPFLASH_BAUD").unwrap_or_else(|_| LITTLEFS_FLASH_BAUD.to_string());
-    println!(
-        "==> Flashing {} bytes to 0x{:x} in {} chunks at {} baud...",
-        data.len(),
-        LITTLEFS_PARTITION_OFFSET,
-        chunk_count,
-        baud
-    );
-
-    let mut offset = LITTLEFS_PARTITION_OFFSET;
-    for (i, chunk) in data.chunks(LITTLEFS_FLASH_CHUNK_SIZE).enumerate() {
-        let chunk_path = chunks_dir.join(format!("chunk_{:02}.bin", i));
-        fs::write(&chunk_path, chunk).context("Failed to write chunk file")?;
-
-        println!(
-            "==> Chunk {}/{}: offset 0x{:x} ({} bytes)...",
-            i + 1,
-            chunk_count,
-            offset,
-            chunk.len()
-        );
-        let status = Command::new("espflash")
-            .current_dir(workspace_root.as_ref())
-            .args([
-                "write-bin",
-                "--chip",
-                "esp32s3",
-                "--baud",
-                &baud,
-                &format!("0x{:x}", offset),
-                chunk_path
-                    .to_str()
-                    .ok_or(anyhow::anyhow!("Invalid chunk path"))?,
-            ])
-            .status()
-            .context("`espflash` littlefs failed")?;
-        if !status.success() {
-            return Err(anyhow::anyhow!(
-                "Failed to flash chunk {}/{} at 0x{:x}. The link dropped mid-write; \
-                 simply rerun `cargo xtask flash littlefs` - chunks already flashed are idempotent.",
-                i + 1,
-                chunk_count,
-                offset
-            ));
-        }
-        offset += chunk.len() as u64;
+fn flash_firmware(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+    let status = Command::new("espflash")
+        .current_dir(workspace_root.as_ref())
+        .args([
+            "flash",
+            "--monitor",
+            "--chip",
+            "esp32s3",
+            "target/xtensa-esp32s3-espidf/release/esp32-rtv",
+        ])
+        .status()
+        .context("`espflash` firmware failed")?;
+    if !status.success() {
+        return Err(anyhow::anyhow!("`espflash` firmware failed"));
     }
     Ok(())
 }
 
-fn littlefsgen(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+fn flash_littlefs(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+    let status = Command::new("espflash")
+        .current_dir(workspace_root.as_ref())
+        .args([
+            "write-bin",
+            "--chip",
+            "esp32s3",
+            "0x310000", // Must match partitions.csv littlefs partition offset, view with "espflash partition-table partitions.csv"
+            "target/littlefs.bin",
+        ])
+        .status()
+        .context("`espflash` littlefs failed")?;
+    if !status.success() {
+        return Err(anyhow::anyhow!("`espflash write-bin` failed for littlefs"));
+    }
+    Ok(())
+}
+
+fn littlefs(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+    /// Hardcoded by the littlefs component: CONFIG_LITTLEFS_BLOCK_SIZE = 4096.
+    const LITTLEFS_BLOCK_SIZE_BYTES: u64 = 4096;
+    /// littlefs partition size (partitions.csv); the image must not exceed this.
+    const LITTLEFS_PARTITION_SIZE: u64 = 0xCF0000;
+    /// LittleFS metadata reserved per file entry (entry struct + name + mtime attr).
+    const LITTLEFS_ENTRY_SIZE: u64 = 128;
+
     let videos_path = args
         .next()
         .ok_or(anyhow::anyhow!("Missing path to a directory of videos"))?;
     let videos_path = Path::new(&videos_path);
 
+    let dir_content = get_dir_content(videos_path).context("Failed to read video directory")?;
+    let fs_size = dir_content.dir_size;
+    let file_count = dir_content.files.len() as u64;
+
+    // Image size = file data rounded to blocks + littlefs metadata overhead:
+    // 2 blocks for the root directory metadata pair, 1 spare block for metadata
+    // compaction during the image build, plus one entry (LITTLEFS_ENTRY_SIZE)
+    // per file and one metadata pair (2 blocks) per subdirectory.
+    let data_bytes = fs_size.div_ceil(LITTLEFS_BLOCK_SIZE_BYTES) * LITTLEFS_BLOCK_SIZE_BYTES;
+    let entry_blocks = (file_count * LITTLEFS_ENTRY_SIZE).div_ceil(LITTLEFS_BLOCK_SIZE_BYTES);
+    let dir_blocks = dir_content.directories.len() as u64 * 2;
+    let overhead_blocks = 3 + entry_blocks + dir_blocks;
+    let image_size = data_bytes + overhead_blocks * LITTLEFS_BLOCK_SIZE_BYTES;
+
+    if image_size > LITTLEFS_PARTITION_SIZE {
+        return Err(anyhow::anyhow!(
+            "Videos need a {:#x}-byte image ({:#x} bytes of files + littlefs metadata), \
+             which exceeds the {:#x}-byte littlefs partition. Remove content or enlarge the \
+             partition in partitions.csv.",
+            image_size,
+            fs_size,
+            LITTLEFS_PARTITION_SIZE
+        ));
+    }
+
     let littlefs_python = ensure_littlefs_python(workspace_root.as_ref())?;
+    println!(
+        "==> Building {}-byte LittleFS image for {} files ({:.2} MB) from {}...",
+        image_size,
+        file_count,
+        fs_size as f64 / (1024.0 * 1024.0),
+        videos_path.display()
+    );
+
     let status = Command::new(littlefs_python)
         .current_dir(workspace_root.as_ref())
         .args([
@@ -212,11 +169,11 @@ fn littlefsgen(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow:
                 .ok_or(anyhow::anyhow!("Invalid video path"))?,
             "target/littlefs.bin",
             "-v",
-            "--fs-size=0xCF0000", // Must match littlefs partition size in partitions.csv
+            &format!("--fs-size=0x{:X}", image_size),
             "--name-max",
-            LITTLEFS_NAME_MAX, // Must match CONFIG_LITTLEFS_OBJ_NAME_LEN
+            "64", // Must match CONFIG_LITTLEFS_OBJ_NAME_LEN (default 64) in the littlefs Kconfig.
             "--block-size",
-            LITTLEFS_BLOCK_SIZE,
+            &LITTLEFS_BLOCK_SIZE_BYTES.to_string(),
         ])
         .status()
         .context("littlefsgen failed")?;
@@ -252,12 +209,20 @@ fn ensure_littlefs_python(workspace_root: impl AsRef<Path>) -> anyhow::Result<Pa
 
     if !littlefs_python.exists() {
         println!("==> Installing littlefs-python into IDF virtualenv...");
+        ensure_espidf_components(workspace_root.as_ref())?;
+        let requirements = find_latest_espidf_path(
+            workspace_root.as_ref(),
+            "out/managed_components/joltwallet__littlefs/image-building-requirements.txt",
+        )?;
         let status = Command::new(&python_path)
             .args([
                 "-m",
                 "pip",
                 "install",
-                &format!("littlefs-python=={}", LITTLEFS_PYTHON_VERSION),
+                "-r",
+                requirements
+                    .to_str()
+                    .ok_or(anyhow::anyhow!("Invalid requirements path"))?,
             ])
             .status()
             .context("Failed to install littlefs-python")?;
@@ -290,4 +255,47 @@ fn find_python_path(workspace_root: impl AsRef<Path>) -> anyhow::Result<PathBuf>
         "Could not find embuild-managed Python environment."
     ))?;
     Ok(python_path)
+}
+
+fn ensure_espidf_components(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+    println!("==> Initializing ESP-IDF environment and fetching components...");
+    Command::new("cargo")
+        .current_dir(workspace_root.as_ref())
+        .args(["check", "--release"])
+        .status()
+        .context("`cargo check` failed")?;
+    Ok(())
+}
+
+fn find_latest_espidf_path(
+    workspace_root: impl AsRef<Path>,
+    path: &str,
+) -> anyhow::Result<PathBuf> {
+    let path_glob = workspace_root
+        .as_ref()
+        .join("target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-*")
+        .join(path);
+
+    let mut paths: Vec<_> = glob(
+        path_glob
+            .to_str()
+            .ok_or(anyhow::anyhow!("Failed to read glob pattern"))?,
+    )
+    .context("Failed to read glob pattern")?
+    .filter_map(Result::ok)
+    .collect();
+
+    if paths.is_empty() {
+        return Err(anyhow::anyhow!("Path {path} not found in esp-idf-sys"));
+    }
+
+    paths.sort_by(|a, b| {
+        let time_a = fs::metadata(a).and_then(|m| m.modified()).ok();
+        let time_b = fs::metadata(b).and_then(|m| m.modified()).ok();
+        time_b.cmp(&time_a)
+    });
+
+    let resolved_path = paths.swap_remove(0);
+    println!("==> Found path at: {}", resolved_path.display());
+    Ok(resolved_path)
 }
