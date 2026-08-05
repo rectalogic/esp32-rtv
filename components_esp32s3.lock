@@ -53,7 +53,7 @@ dependencies:
       type: service
     version: 1.0.0~1
   espressif/esp_board_manager:
-    component_hash: 5802c513b37f62945ecfa6614699752f59ec3f91d612fc077af586bed6caee69
+    component_hash: 3079dc07916cf7cc2291c679cdab2431b15d9a2bb0aa15eaa39604bc1a0d978e
     dependencies:
     - matches:
       - if: $CONFIG{ESP_BOARD_DEV_BUTTON_SUPPORT} == True
@@ -70,7 +70,7 @@ dependencies:
       name: espressif/esp_codec_dev
       registry_url: https://components.espressif.com
       require: private
-      version: ~1.6
+      version: ^2.0.0-beta1
     - matches:
       - if: $CONFIG{ESP_BOARD_DEV_GPIO_EXPANDER_SUPPORT} == True
       name: espressif/esp_io_expander
@@ -110,24 +110,30 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 0.6.1
+    version: 0.7.0
   espressif/esp_boards:
-    component_hash: 6d32eb26833922fe6d517165129089d4fe1d973c4fa0e77d5dc06a27257c1e6e
+    component_hash: de58940a2519232753e36befd1c3aa3e0f1e13e2916b780f3b48ab2fca0265eb
     dependencies: []
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 0.5.3~1
+    version: 0.5.4~1
   espressif/esp_codec_dev:
-    component_hash: 4779f31a3ba3f9b38aee1afe6ccb9ba8f6108dc3a6e77d39d7d714e9a215371b
+    component_hash: 66e8f5c2c0ae74ece2122a817ab9e12f88a550a8e06ccd0871ba2c787d48e93e
     dependencies:
+    - name: espressif/usb_host_uac
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: target in [esp32s2, esp32s3, esp32s31, esp32p4, esp32h4] && $CONFIG{CODEC_UAC_SUPPORT} == True
+      version: ^1.5.0
     - name: idf
       require: private
-      version: '>=4.0'
+      version: '>=5.4.4,!=5.5.0,!=5.5.1,!=5.5.2'
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 1.6.2
+    version: 2.0.0-beta1
   espressif/esp_extractor:
     component_hash: a0a68d2ec10e63dc6e4f0c8bfc9e6bbc8aa9673dd6c443f335b2013f9197a8b8
     dependencies: []
@@ -136,7 +142,7 @@ dependencies:
       type: service
     version: 1.0.3
   espressif/esp_h264:
-    component_hash: 5ccc09adefccabade1530b9dd106d07c3c96e991dc35b5516063165ef60c5646
+    component_hash: 408a8934522d77d878e0525107aa485692ac504573da7c05dd200857cb071daa
     dependencies:
     - name: idf
       require: private
@@ -148,7 +154,7 @@ dependencies:
     - esp32s3
     - esp32s31
     - esp32p4
-    version: 1.3.6
+    version: 1.3.7
   espressif/esp_hls_stream:
     component_hash: 6e03713dbb5e8714da75991f37e8129855f3fee46c72375a89ec3cb10dbe5854
     dependencies:
