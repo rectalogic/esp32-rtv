@@ -21,6 +21,18 @@ $ cargo +stable xtask flash firmware
 $ cargo +stable xtask flash littlefs
 ```
 
+# Encoding
+
+Encode `interstitial.mp4` static/snow video into videos path:
+```sh-session
+$ cargo xtask encode interstitial /path/to/videos
+```
+
+Encode `my-video.avi` to `/path/to/videos/my-video.mp4`:
+```sh-session
+$ cargo xtask encode my-video.avi /path/to/videos
+```
+
 # Development
 
 If anything in `components/e32c28p` is modified, rerun `cargo xtask generate`.

@@ -18,7 +18,7 @@ fn main() -> anyhow::Result<()> {
         Some("bmgr") => bmgr(&workspace_root)?,
         Some("flash") => flash(args, &workspace_root)?,
         Some("littlefs") => littlefs(args, &workspace_root)?,
-        Some("interstitial") => interstitial(args, &workspace_root)?,
+        Some("encode") => encode(args, &workspace_root)?,
         Some("monitor") => monitor(&workspace_root)?,
         _ => print_help(),
     }
@@ -36,8 +36,10 @@ flash firmware|littlefs
     (single espflash write-bin; set ESPFLASH_BAUD to override the baud)
 littlefs <video-directory>
     build LittleFS filesystem image with embedded videos
-interstitial <video-directory>
-    generate interstitial.mp4 video in <video-directory>
+encode interstitial <video-directory>
+    generate interstitial.mp4 video in <video-directory>,
+encode <video> <video-directory>
+    encode <video> into <video-directory>
 monitor
     monitor logs
 "
@@ -187,51 +189,84 @@ fn littlefs(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Re
     Ok(())
 }
 
-fn interstitial(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
-    // # "end_frame=4" 4 snow frames, "-refs 4" looks back so they are basically only encoded once
-    // # then we "loop" "-frames:v 24" to 24 frames, basically free
-    // ffmpeg -f lavfi -i "color=c=0x808080:s=320x240:r=15,noise=alls=100:allf=t+u,eq=contrast=1.4,format=yuv420p,trim=end_frame=4,setpts=PTS-STARTPTS,loop=loop=-1:size=4:start=0" -frames:v 24 -c:v libx264 -preset veryfast -profile:v baseline -level 3.0 -bf 0 -refs 4 -sc_threshold 0 -x264-params scenecut=0 -crf 23 -pix_fmt yuv420p -y crt_loop.mp4
+fn encode(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+    let command = args
+        .next()
+        .ok_or(anyhow::anyhow!("Missing `interstitial` or `<video>`"))?;
+    match command.as_str() {
+        "interstitial" => encode_interstitial(args, workspace_root),
+        video_path => encode_video(video_path, args, workspace_root),
+    }
+}
 
-    let output_path = args
+fn encode_video(
+    video_path: &str,
+    mut args: env::Args,
+    workspace_root: impl AsRef<Path>,
+) -> anyhow::Result<()> {
+    let output_directory = args
         .next()
         .ok_or(anyhow::anyhow!("Missing output directory"))?;
+    let mut output_path = PathBuf::from(video_path);
+    output_path.set_extension("mp4");
+    output_path = Path::new(&output_directory).join(output_path.file_name().ok_or(
+        anyhow::anyhow!("Invalid video path {}", output_path.display()),
+    )?);
+    let status = Command::new("ffmpeg")
+        .current_dir(workspace_root.as_ref())
+        .args([
+            "-i",
+            video_path,
+            "-r", "15",
+            "-c:v", "libx264",
+            "-preset", "veryslow",
+            "-profile:v", "baseline",
+            "-level", "3.0",
+            "-c:a", "aac",
+            "-ar", "16000",
+            "-ac", "1",
+            "-vf", "scale=320x240:force_original_aspect_ratio=decrease:reset_sar=1:flags=lanczos,pad=320:240:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
+            "-y",
+            output_path.to_str().ok_or(anyhow::anyhow!("Invalid output path {}", output_path.display()))?,
+        ])
+        .status()
+        .context("`ffmpeg` failed")?;
+    if !status.success() {
+        return Err(anyhow::anyhow!("`ffmpeg` failed"));
+    }
+    Ok(())
+}
 
+fn encode_interstitial(
+    mut args: env::Args,
+    workspace_root: impl AsRef<Path>,
+) -> anyhow::Result<()> {
     // Unique snow/static frames
     const UNIQUE_FRAMES: u32 = 4;
     // Total frames in video - we use "-refs 4" so there is very little overhead for additional frames
     const TOTAL_FRAMES: u32 = UNIQUE_FRAMES * 6;
 
+    let output_directory = args
+        .next()
+        .ok_or(anyhow::anyhow!("Missing output directory"))?;
+    let output_path = Path::new(&output_directory).join("interstitial.mp4");
     let status = Command::new("ffmpeg")
         .current_dir(workspace_root.as_ref())
         .args([
-            "-f",
-            "lavfi",
-            "-i",
-            &format!("color=c=0x808080:s=320x240:r=15,noise=alls=100:allf=t+u,eq=contrast=1.4,format=yuv420p,trim=end_frame={UNIQUE_FRAMES},setpts=PTS-STARTPTS,loop=loop=-1:size={UNIQUE_FRAMES}:start=0"),
-            "-frames:v",
-            &TOTAL_FRAMES.to_string(),
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-profile:v",
-            "baseline",
-            "-level",
-            "3.0",
-            "-bf",
-            "0",
-            "-refs",
-            &UNIQUE_FRAMES.to_string(),
-            "-sc_threshold",
-            "0",
-            "-x264-params",
-            "scenecut=0",
-            "-crf",
-            "23",
-            "-pix_fmt",
-            "yuv420p",
-            "-y",
-            &output_path
+            "-f", "lavfi",
+            "-i", &format!("color=c=0x808080:s=320x240:r=15,noise=alls=100:allf=t+u,eq=contrast=1.4,format=yuv420p,trim=end_frame={UNIQUE_FRAMES},setpts=PTS-STARTPTS,loop=loop=-1:size={UNIQUE_FRAMES}:start=0"),
+            "-frames:v", &TOTAL_FRAMES.to_string(),
+            "-c:v", "libx264",
+            "-preset", "veryslow",
+            "-profile:v", "baseline",
+            "-level", "3.0",
+            "-bf", "0",
+            "-refs", &UNIQUE_FRAMES.to_string(),
+            "-sc_threshold", "0",
+            "-x264-params", "scenecut=0",
+            "-crf", "23",
+            "-pix_fmt", "yuv420p",
+            "-y", output_path.to_str().ok_or(anyhow::anyhow!("Invalid output path {}", output_path.display()))?,
         ])
         .status()
         .context("`ffmpeg` failed")?;
