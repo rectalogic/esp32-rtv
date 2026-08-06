@@ -543,6 +543,11 @@ esp_player_err_t play_url(const char* url) {
         return ESP_PLAYER_ERR_FAIL;
     }
     esp_player_err_t ret = ESP_PLAYER_ERR_OK;
+    // Work around https://github.com/espressif/esp-gmf/issues/60
+    if ((ret = esp_player_stop(s_player)) != ESP_PLAYER_ERR_OK) {
+        ESP_LOGE(TAG, "Stop failed: %d", ret);
+        return ret;
+    }
     esp_player_data_src_t src = ESP_PLAYER_DATA_SRC(url, ESP_PLAYER_MASK_AV);
     if ((ret = esp_player_set_data_src(s_player, &src)) != ESP_PLAYER_ERR_OK) {
         ESP_LOGE(TAG, "Set URL failed: %d", ret);
