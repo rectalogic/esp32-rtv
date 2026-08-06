@@ -6,7 +6,7 @@ Configured for [E32N28P/E32C28P](https://www.lcdwiki.com/2.8inch_ESP32-S3_Displa
 In docker container from .devcontainer/Dockerfile:
 
 ```sh-session
-$ cargo xtask generate
+$ cargo xtask bmgr
 $ cargo build --release
 ```
 

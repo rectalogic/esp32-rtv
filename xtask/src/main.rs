@@ -15,9 +15,10 @@ fn main() -> anyhow::Result<()> {
         .ok_or(anyhow::anyhow!("Failed to find workspace root"))?
         .to_path_buf();
     match task.as_deref() {
-        Some("generate") => generate(&workspace_root)?,
+        Some("bmgr") => bmgr(&workspace_root)?,
         Some("flash") => flash(args, &workspace_root)?,
         Some("littlefs") => littlefs(args, &workspace_root)?,
+        Some("interstitial") => interstitial(args, &workspace_root)?,
         Some("monitor") => monitor(&workspace_root)?,
         _ => print_help(),
     }
@@ -28,20 +29,22 @@ fn print_help() {
     eprintln!(
         "Tasks:
 
-generate
+bmgr
     generate esp_board_manager code in components/gen_bmgr_codes
 flash firmware|littlefs
     flash release firmware or target/littlefs.bin
     (single espflash write-bin; set ESPFLASH_BAUD to override the baud)
 littlefs <video-directory>
     build LittleFS filesystem image with embedded videos
+interstitial <video-directory>
+    generate interstitial.mp4 video in <video-directory>
 monitor
     monitor logs
 "
     )
 }
 
-fn generate(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+fn bmgr(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     ensure_espidf_components(workspace_root.as_ref())?;
     let python_path = find_python_path(workspace_root.as_ref())?;
 
@@ -180,6 +183,60 @@ fn littlefs(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Re
 
     if !status.success() {
         return Err(anyhow::anyhow!("littlefsgen failed"));
+    }
+    Ok(())
+}
+
+fn interstitial(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+    // # "end_frame=4" 4 snow frames, "-refs 4" looks back so they are basically only encoded once
+    // # then we "loop" "-frames:v 24" to 24 frames, basically free
+    // ffmpeg -f lavfi -i "color=c=0x808080:s=320x240:r=15,noise=alls=100:allf=t+u,eq=contrast=1.4,format=yuv420p,trim=end_frame=4,setpts=PTS-STARTPTS,loop=loop=-1:size=4:start=0" -frames:v 24 -c:v libx264 -preset veryfast -profile:v baseline -level 3.0 -bf 0 -refs 4 -sc_threshold 0 -x264-params scenecut=0 -crf 23 -pix_fmt yuv420p -y crt_loop.mp4
+
+    let output_path = args
+        .next()
+        .ok_or(anyhow::anyhow!("Missing output directory"))?;
+
+    // Unique snow/static frames
+    const UNIQUE_FRAMES: u32 = 4;
+    // Total frames in video - we use "-refs 4" so there is very little overhead for additional frames
+    const TOTAL_FRAMES: u32 = UNIQUE_FRAMES * 6;
+
+    let status = Command::new("ffmpeg")
+        .current_dir(workspace_root.as_ref())
+        .args([
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("color=c=0x808080:s=320x240:r=15,noise=alls=100:allf=t+u,eq=contrast=1.4,format=yuv420p,trim=end_frame={UNIQUE_FRAMES},setpts=PTS-STARTPTS,loop=loop=-1:size={UNIQUE_FRAMES}:start=0"),
+            "-frames:v",
+            &TOTAL_FRAMES.to_string(),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-profile:v",
+            "baseline",
+            "-level",
+            "3.0",
+            "-bf",
+            "0",
+            "-refs",
+            &UNIQUE_FRAMES.to_string(),
+            "-sc_threshold",
+            "0",
+            "-x264-params",
+            "scenecut=0",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-y",
+            &output_path
+        ])
+        .status()
+        .context("`ffmpeg` failed")?;
+    if !status.success() {
+        return Err(anyhow::anyhow!("`ffmpeg` failed"));
     }
     Ok(())
 }
