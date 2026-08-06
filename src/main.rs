@@ -6,21 +6,26 @@ fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
 
     // Bind the log crate to the ESP Logging facilities
-    esp_idf_svc::log::EspLogger::initialize_default();
+    let _logger = esp_idf_svc::log::init_from_esp_idf();
+    // logger
+    //     .filter()
+    //     .set_target_level("ESP_PLAYER", log::LevelFilter::Debug)?;
 
     let video_player = VideoPlayer::new()?;
 
-    if let Ok(_littlefs) = Littlefs::new() {
-        for entry in std::fs::read_dir("/littlefs")? {
-            let entry = entry?;
-            log::info!("{:?}", entry.path());
-        }
-
-        video_player.play("/littlefs/interstitial.mp4")?;
+    let mut interstitial = None;
+    let littlefs = Littlefs::new();
+    let sdcard = SdCard::new();
+    if littlefs.is_ok() && matches!(std::fs::exists("/littlefs/interstitial.mp4"), Ok(true)) {
+        interstitial = Some("/littlefs/interstitial.mp4");
     }
 
-    if let Ok(_sdcard) = SdCard::new() {
-        video_player.play("/sdcard/itysl.mp4")?;
+    if sdcard.is_ok() {
+        video_player.play("/sdcard/rtv/itysl.mp4")?;
+        if let Some(interstitial) = interstitial {
+            video_player.play(interstitial)?;
+        }
+        video_player.play("/sdcard/rtv/brian.mp4")?;
     }
 
     Ok(())
