@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "esp_log.h"
+#include "esp_lcd_panel_ops.h"
 #include "esp_codec_dev.h"
 #include "esp_board_manager_includes.h"
 #include "media_lib_adapter.h"
@@ -439,7 +440,7 @@ static void destroy_video_render(void)
 #endif  /* CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT */
 }
 
-esp_player_err_t video_player_setup(const video_render_settings_t *render_settings)
+static esp_player_err_t video_player_setup(const video_render_settings_t *render_settings)
 {
     if (render_settings == NULL || render_settings->video_fps == 0) {
         return ESP_PLAYER_ERR_INVALID_ARG;
@@ -467,7 +468,7 @@ esp_player_err_t video_player_setup(const video_render_settings_t *render_settin
     return ESP_PLAYER_ERR_OK;
 }
 
-esp_player_err_t create_video_player()
+static esp_player_err_t create_video_player()
 {
     if (s_player != NULL) {
         ESP_LOGE(TAG, "create_video_player already called");
@@ -498,7 +499,7 @@ esp_player_err_t create_video_player()
     return ESP_PLAYER_ERR_OK;
 }
 
-void destroy_video_player()
+static void destroy_video_player()
 {
     if (s_player == NULL) {
         return;
@@ -509,7 +510,7 @@ void destroy_video_player()
     s_player = NULL;
 }
 
-void video_player_teardown(void)
+static void video_player_teardown(void)
 {
     if (s_audio_render != NULL || s_video_render != NULL) {
         destroy_audio_render();
@@ -560,6 +561,19 @@ esp_player_err_t play_url(const char* url) {
         return ret;
     }
     return ret;
+}
+
+esp_err_t invert_display(bool invert)
+{
+    esp_err_t ret = ESP_OK;
+    dev_display_lcd_handles_t *lcd_handles = NULL;
+    if ((ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, (void **)&lcd_handles)) != ESP_OK) {
+        return ret;
+    }
+    if (lcd_handle == NULL || lcd_handle->panel_handle == NULL) {
+        return ESP_ERR_FAIL;
+    }
+    return esp_lcd_panel_invert_color(lcd_handles->panel_handle, invert);
 }
 
 void deinitialize_video_system(void)

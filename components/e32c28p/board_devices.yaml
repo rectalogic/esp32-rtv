@@ -66,9 +66,9 @@ devices:
           reset: 0
           interrupt: 0
         flags:
-          swap_xy: false
-          mirror_x: false
-          mirror_y: false
+          swap_xy: true
+          mirror_x: true
+          mirror_y: true
     peripherals:
       - name: i2c_shared
         i2c_addr: [0x38]
@@ -155,3 +155,11 @@ devices:
       max_leds: 1
       led_model: LED_MODEL_WS2812
       color_component_format: LED_STRIP_COLOR_COMPONENT_FMT_GRB
+
+  - name: gpio_button_0
+    type: button
+    sub_type: gpio
+    config:
+      active_level: 0
+    peripherals:
+      - name: gpio_button_io_0

@@ -1,5 +1,9 @@
-use esp_idf_svc::sys::video_player::{
-    deinitialize_video_system, esp_player_err_t, initialize_video_system, play_url,
+use esp_idf_svc::sys::{
+    EspError, esp,
+    video_player::{
+        deinitialize_video_system, esp_player_err_t, initialize_video_system, invert_display,
+        play_url,
+    },
 };
 use std::ffi::CString;
 
@@ -20,6 +24,10 @@ impl VideoPlayer {
     pub fn play(&self, url: &str) -> Result<Status, Error> {
         let c_url = CString::new(url).map_err(|_| Error::InvalidArg)?;
         esp_err_to_result(unsafe { play_url(c_url.as_ptr()) })
+    }
+
+    pub fn invert_display(&self, invert: bool) -> Result<(), EspError> {
+        esp!(unsafe { invert_display(invert) })
     }
 }
 

@@ -54,3 +54,10 @@ peripherals:
     config:
       pin: 1
       mode: GPIO_MODE_OUTPUT
+
+  - name: gpio_button_io_0
+    type: gpio
+    role: io
+    config:
+      pin: 0
+      mode: "GPIO_MODE_INPUT"
