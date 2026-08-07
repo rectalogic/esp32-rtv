@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Based on https://github.com/espressif/esp-gmf/tree/81b45bfcfc10daa18d81869ac2fbeebd88ab0876/packages/esp_player/examples/video_player/main
+
 #include <inttypes.h>
 #include <string.h>
 
