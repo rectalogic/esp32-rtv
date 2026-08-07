@@ -12,29 +12,29 @@ $ cargo build --release
 
 Building a LittleFS filesystem with embedded videos:
 ```sh-session
-$ cargo xtask littlefs /path/to/videos
+$ cargo xtask embed path/to/videos
 ```
 
 Flash from host with access to USB:
 ```sh-session
 $ cargo +stable xtask flash firmware
-$ cargo +stable xtask flash littlefs
+$ cargo +stable xtask flash embed
 ```
 
 # Encoding
 
 Encode `interstitial.mp4` static/snow video into videos path:
 ```sh-session
-$ cargo xtask encode interstitial /path/to/videos
+$ cargo xtask encode path/to/videos interstitial
 ```
 
 Encode `my-video.avi` to `/path/to/videos/my-video.mp4`:
 ```sh-session
-$ cargo xtask encode my-video.avi /path/to/videos
+$ cargo xtask encode path/to/videos video my-video.avi
 ```
 
 # Development
 
-If anything in `components/e32c28p` is modified, rerun `cargo xtask generate`.
+If anything in `components/e32c28p` is modified, rerun `cargo xtask bmgr`.
 
 If anything in `components/video_player` is modified, `touch components/video_player/bindings.h`.

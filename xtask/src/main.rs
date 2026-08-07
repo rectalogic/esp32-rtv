@@ -1,4 +1,5 @@
 use anyhow::Context;
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use fs_extra::dir::get_dir_content;
 use glob::glob;
 use std::{
@@ -7,43 +8,84 @@ use std::{
     process::Command,
 };
 
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Xtask {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Regenerate esp_board_manager code in components/gen_bmgr_codes
+    Bmgr,
+    /// Flash firmware or embedded video filesystem
+    Flash {
+        #[arg(value_enum)]
+        flash_type: FlashType,
+    },
+    /// Build embedded video filesystem
+    Embed {
+        /// Directory of videos to embed
+        video_dir: PathBuf,
+    },
+    /// Encode video or interstitial
+    Encode(EncodeArgs),
+    /// Monitor device logs
+    Monitor,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum FlashType {
+    Firmware,
+    Embed,
+}
+
+#[derive(Args)]
+#[command(flatten_help = true)]
+struct EncodeArgs {
+    #[command(subcommand)]
+    command: EncodeCommands,
+    /// Video output directory
+    output_directory: PathBuf,
+}
+
+#[derive(Subcommand)]
+enum EncodeCommands {
+    /// Encode interstitial.mp4 video
+    Interstitial,
+    /// Encode video
+    Video {
+        /// Source video to encode
+        video_path: PathBuf,
+    },
+}
+
 fn main() -> anyhow::Result<()> {
-    let mut args = env::args();
-    let task = args.nth(1);
     let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .ok_or(anyhow::anyhow!("Failed to find workspace root"))?
         .to_path_buf();
-    match task.as_deref() {
-        Some("bmgr") => bmgr(&workspace_root)?,
-        Some("flash") => flash(args, &workspace_root)?,
-        Some("littlefs") => littlefs(args, &workspace_root)?,
-        Some("encode") => encode(args, &workspace_root)?,
-        Some("monitor") => monitor(&workspace_root)?,
-        _ => print_help(),
+
+    let xtask = Xtask::parse();
+    match &xtask.command {
+        Commands::Bmgr => bmgr(&workspace_root),
+        Commands::Flash { flash_type } => match flash_type {
+            FlashType::Firmware => flash_firmware(&workspace_root),
+            FlashType::Embed => flash_embed(&workspace_root),
+        },
+        Commands::Embed { video_dir } => embed(video_dir, &workspace_root),
+        Commands::Encode(EncodeArgs {
+            command,
+            output_directory,
+        }) => match command {
+            EncodeCommands::Interstitial => encode_interstitial(output_directory, &workspace_root),
+            EncodeCommands::Video { video_path } => {
+                encode_video(video_path, output_directory, &workspace_root)
+            }
+        },
+        Commands::Monitor => monitor(&workspace_root),
     }
-    Ok(())
-}
-
-fn print_help() {
-    eprintln!(
-        "Tasks:
-
-bmgr
-    generate esp_board_manager code in components/gen_bmgr_codes
-flash firmware|littlefs
-    flash release firmware or target/littlefs.bin
-    (single espflash write-bin; set ESPFLASH_BAUD to override the baud)
-littlefs <video-directory>
-    build LittleFS filesystem image with embedded videos
-encode interstitial <video-directory>
-    generate interstitial.mp4 video in <video-directory>,
-encode <video> <video-directory>
-    encode <video> into <video-directory>
-monitor
-    monitor logs
-"
-    )
 }
 
 fn bmgr(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
@@ -74,14 +116,6 @@ fn bmgr(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn flash(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
-    match args.next().as_deref() {
-        Some("firmware") => flash_firmware(workspace_root),
-        Some("littlefs") => flash_littlefs(workspace_root),
-        _ => Err(anyhow::anyhow!("specify `firmware` or `littlefs`")),
-    }
-}
-
 fn flash_firmware(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     let status = Command::new("espflash")
         .current_dir(workspace_root.as_ref())
@@ -100,7 +134,7 @@ fn flash_firmware(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn flash_littlefs(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+fn flash_embed(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     let status = Command::new("espflash")
         .current_dir(workspace_root.as_ref())
         .args([
@@ -118,7 +152,7 @@ fn flash_littlefs(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn littlefs(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
+fn embed(videos_path: impl AsRef<Path>, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
     /// Hardcoded by the littlefs component: CONFIG_LITTLEFS_BLOCK_SIZE = 4096.
     const LITTLEFS_BLOCK_SIZE_BYTES: u64 = 4096;
     /// littlefs partition size (partitions.csv); the image must not exceed this.
@@ -126,11 +160,7 @@ fn littlefs(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Re
     /// LittleFS metadata reserved per file entry (entry struct + name + mtime attr).
     const LITTLEFS_ENTRY_SIZE: u64 = 128;
 
-    let videos_path = args
-        .next()
-        .ok_or(anyhow::anyhow!("Missing path to a directory of videos"))?;
-    let videos_path = Path::new(&videos_path);
-
+    let videos_path = videos_path.as_ref();
     let dir_content = get_dir_content(videos_path).context("Failed to read video directory")?;
     let fs_size = dir_content.dir_size;
     let file_count = dir_content.files.len() as u64;
@@ -189,34 +219,22 @@ fn littlefs(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Re
     Ok(())
 }
 
-fn encode(mut args: env::Args, workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
-    let command = args
-        .next()
-        .ok_or(anyhow::anyhow!("Missing `interstitial` or `<video>`"))?;
-    match command.as_str() {
-        "interstitial" => encode_interstitial(args, workspace_root),
-        video_path => encode_video(video_path, args, workspace_root),
-    }
-}
-
 fn encode_video(
-    video_path: &str,
-    mut args: env::Args,
+    video_path: impl AsRef<Path>,
+    output_directory: impl AsRef<Path>,
     workspace_root: impl AsRef<Path>,
 ) -> anyhow::Result<()> {
-    let output_directory = args
-        .next()
-        .ok_or(anyhow::anyhow!("Missing output directory"))?;
+    let video_path = video_path.as_ref();
     let mut output_path = PathBuf::from(video_path);
     output_path.set_extension("mp4");
-    output_path = Path::new(&output_directory).join(output_path.file_name().ok_or(
+    output_path = Path::new(output_directory.as_ref()).join(output_path.file_name().ok_or(
         anyhow::anyhow!("Invalid video path {}", output_path.display()),
     )?);
     let status = Command::new("ffmpeg")
         .current_dir(workspace_root.as_ref())
         .args([
             "-i",
-            video_path,
+            video_path.to_str().ok_or(anyhow::anyhow!("Invalid video path {}", video_path.display()))?,
             "-r", "15",
             "-c:v", "libx264",
             "-preset", "veryslow",
@@ -238,7 +256,7 @@ fn encode_video(
 }
 
 fn encode_interstitial(
-    mut args: env::Args,
+    output_directory: impl AsRef<Path>,
     workspace_root: impl AsRef<Path>,
 ) -> anyhow::Result<()> {
     // Unique snow/static frames
@@ -246,10 +264,7 @@ fn encode_interstitial(
     // Total frames in video - we use "-refs 4" so there is very little overhead for additional frames
     const TOTAL_FRAMES: u32 = UNIQUE_FRAMES * 6;
 
-    let output_directory = args
-        .next()
-        .ok_or(anyhow::anyhow!("Missing output directory"))?;
-    let output_path = Path::new(&output_directory).join("interstitial.mp4");
+    let output_path = Path::new(output_directory.as_ref()).join("interstitial.mp4");
     let status = Command::new("ffmpeg")
         .current_dir(workspace_root.as_ref())
         .args([
