@@ -1,7 +1,7 @@
 use esp_idf_svc::sys::{
     EspError, esp,
     video_player::{
-        deinitialize_video_system, esp_player_err_t, initialize_video_system, invert_display,
+        deinitialize_video_system, esp_player_err_t, hilite_video, initialize_video_system,
         play_url,
     },
 };
@@ -26,8 +26,8 @@ impl VideoPlayer {
         esp_err_to_result(unsafe { play_url(c_url.as_ptr()) })
     }
 
-    pub fn invert_display(&self, invert: bool) -> Result<(), EspError> {
-        esp!(unsafe { invert_display(invert) })
+    pub fn hilite_video(&self, hilite: bool) -> Result<(), EspError> {
+        esp!(unsafe { hilite_video(hilite) })
     }
 }
 

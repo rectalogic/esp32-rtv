@@ -17,9 +17,9 @@ pub fn app() -> anyhow::Result<()> {
             let mut user_input = UserInput::new(gpio0.into()).expect("user input");
             loop {
                 user_input.wait_for_input();
-                video_player.invert_display(false);
+                video_player.hilite_video(true);
                 FreeRtos::delay_ms(250);
-                video_player.invert_display(true);
+                video_player.hilite_video(false);
             }
         });
 

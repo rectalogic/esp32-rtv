@@ -10,7 +10,6 @@
 #include <string.h>
 
 #include "esp_log.h"
-#include "esp_lcd_panel_ops.h"
 #include "esp_codec_dev.h"
 #include "esp_board_manager_includes.h"
 #include "media_lib_adapter.h"
@@ -19,6 +18,8 @@
 #include "esp_video_dec_default.h"
 #include "esp_audio_render.h"
 #include "esp_video_render.h"
+#include "esp_vui_container.h"
+#include "esp_vui_overlay.h"
 #include "esp_video_render_backend.h"
 #include "esp_gmf_pool.h"
 #include "esp_gmf_ch_cvt.h"
@@ -41,6 +42,9 @@ static esp_gmf_pool_handle_t s_video_pool = NULL;
 
 static esp_audio_render_handle_t s_audio_render = NULL;
 static esp_gmf_pool_handle_t s_audio_pool = NULL;
+
+static esp_video_render_stream_handle_t s_overlay_stream = NULL;
+static esp_vui_container_handle_t s_overlay_container = NULL;
 
 static esp_player_handle_t s_player = NULL;
 
@@ -357,6 +361,78 @@ static void destroy_audio_render(void)
     close_playback_codec();
 }
 
+static esp_video_render_err_t create_video_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
+    esp_video_render_err_t ret = ESP_VIDEO_RENDER_ERR_OK;
+
+    // 1. Open a dedicated stream just to host the UI overlay
+    esp_video_render_stream_info_t stream_info = {
+        .info = {
+            // We won't write actual video frames to this stream,
+            // but the renderer requires a valid format/size to initialize it.
+            .format = ESP_VIDEO_RENDER_FORMAT_RGB565,
+            .width = width,
+            .height = height,
+            .fps = 0,
+        },
+        .cached = true, // Cached is efficient for static UI elements, required to set alpha
+    };
+
+    if ((ret = esp_video_render_stream_open(render_handle, &stream_info, &s_overlay_stream)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to open overlay stream");
+        return ret;
+    }
+
+    // 2. Set Z-Order to 1 so this renders ABOVE the esp_player video stream (which is 0)
+    if ((ret = esp_video_render_stream_set_zorder(s_overlay_stream, 1)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to set overlay z-order");
+        return ret;
+    }
+
+    // Ensure the stream covers the whole screen
+    esp_video_render_rect_t disp_rect = { .x = 0, .y = 0, .width = width, .height = height };
+    if ((ret = esp_video_render_stream_set_disp_rect(s_overlay_stream, &disp_rect)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to set overlay disp_rect");
+        return ret;
+    }
+
+    // 3. Get the overlay handle attached to this new stream
+    esp_vui_overlay_handle_t overlay = NULL;
+    if ((ret = esp_video_render_stream_get_overlay(s_overlay_stream, &overlay)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to get render overlay");
+        return ret;
+    }
+    if (overlay == NULL) {
+        ESP_LOGE(TAG, "Failed to get overlay handle");
+        return ESP_VIDEO_RENDER_ERR_FAIL;
+    }
+
+    esp_video_render_frame_info_t container_info = {
+        .format = ESP_VIDEO_RENDER_FORMAT_RGB565,
+        .width = width,
+        .height = height,
+    };
+    esp_video_render_pos_t container_pos = {.x = 0, .y = 0};
+    if ((ret = esp_vui_container_create(overlay, &container_info, &container_pos, true, &s_overlay_container)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to create overlay container");
+        return ret;
+    }
+    esp_video_render_clr_t container_bg = {.r = 255, .g = 0, .b = 0};
+    if ((ret = esp_vui_container_set_bg_color(s_overlay_container, &container_bg)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to set container color");
+        return ret;
+    }
+    if ((ret = esp_vui_container_set_alpha(s_overlay_container, 180)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to set container alpha");
+        return ret;
+    }
+    if ((ret = esp_vui_container_set_visible(s_overlay_container, false)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "Failed to set container invisible");
+        return ret;
+    }
+
+    return ret;
+}
+
 static esp_player_err_t create_video_render(const video_render_settings_t *settings)
 {
 #ifdef CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
@@ -414,6 +490,11 @@ static esp_player_err_t create_video_render(const video_render_settings_t *setti
     ESP_LOGI(TAG, "Video render ready: %ux%u, out_format=0x%" PRIx32 "",
              (unsigned)lcd_cfg->lcd_width, (unsigned)lcd_cfg->lcd_height,
              (uint32_t)lcd_backend_cfg.out_format);
+
+    if (create_video_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height) != ESP_VIDEO_RENDER_ERR_OK) {
+        goto fail;
+    }
+
     return ESP_PLAYER_ERR_OK;
 
 fail:
@@ -427,6 +508,9 @@ fail:
 
 static void destroy_video_render(void)
 {
+    s_overlay_container = NULL;
+    s_overlay_stream = NULL;
+
     if (s_video_render) {
         esp_video_render_destroy((esp_video_render_handle_t)s_video_render);
         s_video_render = NULL;
@@ -563,17 +647,13 @@ esp_player_err_t play_url(const char* url) {
     return ret;
 }
 
-esp_err_t invert_display(bool invert)
-{
-    esp_err_t ret = ESP_OK;
-    dev_display_lcd_handles_t *lcd_handles = NULL;
-    if ((ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, (void **)&lcd_handles)) != ESP_OK) {
-        return ret;
+esp_err_t hilite_video(bool hilite) {
+    if (s_overlay_container == NULL) return ESP_FAIL;
+
+    if (esp_vui_container_set_visible(s_overlay_container, hilite) != ESP_VIDEO_RENDER_ERR_OK) {
+        return ESP_FAIL;
     }
-    if (lcd_handle == NULL || lcd_handle->panel_handle == NULL) {
-        return ESP_ERR_FAIL;
-    }
-    return esp_lcd_panel_invert_color(lcd_handles->panel_handle, invert);
+    return ESP_OK;
 }
 
 void deinitialize_video_system(void)
