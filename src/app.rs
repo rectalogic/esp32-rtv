@@ -1,25 +1,37 @@
 use crate::{
-    input::UserInput, littlefs::Littlefs, sdcard::SdCard, video_player::VideoPlayer,
+    input::{ButtonEvent, UserInput},
+    littlefs::Littlefs,
+    sdcard::SdCard,
+    video_player::VideoPlayer,
     videos::find_videos,
 };
-use esp_idf_svc::hal::{delay::FreeRtos, peripherals::Peripherals};
+use esp_idf_svc::hal::peripherals::Peripherals;
 use std::thread;
+use std::time::Duration;
 
 const INTERSTITIAL: &str = "/littlefs/interstitial.mp4";
+const LONG_PRESS_MS: u64 = 500;
 
 pub fn app() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
     let video_player = VideoPlayer::new()?;
 
-    thread::scope(|scope| {
+    thread::scope(|scope| -> anyhow::Result<()> {
         let gpio0 = peripherals.pins.gpio0;
-        let _user_input_thread = scope.spawn(|| {
+        let _user_input_thread = scope.spawn(|| -> anyhow::Result<()> {
             let mut user_input = UserInput::new(gpio0.into()).expect("user input");
             loop {
-                user_input.wait_for_input();
-                video_player.hilite_video(true);
-                FreeRtos::delay_ms(250);
-                video_player.hilite_video(false);
+                match user_input.wait_for_event()? {
+                    ButtonEvent::Pressed => {
+                        video_player.hilite_video(true)?;
+                    }
+                    ButtonEvent::Released { held } => {
+                        video_player.hilite_video(false)?;
+                        if held >= Duration::from_millis(LONG_PRESS_MS) {
+                            log::info!("long press, held {held:?}");
+                        }
+                    }
+                }
             }
         });
 
