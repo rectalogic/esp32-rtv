@@ -1,5 +1,7 @@
-use esp_idf_svc::sys::video_player::{mount_sdcard, unmount_sdcard};
-use esp_idf_svc::sys::{EspError, esp_result};
+use esp_idf_svc::sys::{
+    EspError, esp_result,
+    video_player::{mount_sdcard, unmount_sdcard},
+};
 
 pub struct SdCard {
     _private: (),

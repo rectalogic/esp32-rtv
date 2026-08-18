@@ -4,8 +4,14 @@ use crate::{
     sdcard::SdCard,
     video_player::VideoPlayer,
     videos::find_videos,
+    wifi::WifiProvisioning,
 };
-use esp_idf_svc::hal::peripherals::Peripherals;
+use esp_idf_svc::{
+    eventloop::EspSystemEventLoop,
+    hal::peripherals::Peripherals,
+    nvs::EspDefaultNvsPartition,
+    wifi::{BlockingWifi, EspWifi},
+};
 use std::thread;
 use std::time::Duration;
 
@@ -14,7 +20,19 @@ const LONG_PRESS_MS: u64 = 500;
 
 pub fn app() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
+    let sys_loop = EspSystemEventLoop::take()?;
+    let nvs = EspDefaultNvsPartition::take()?;
     let video_player = VideoPlayer::new()?;
+
+    let mut wifi = BlockingWifi::wrap(
+        EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
+        sys_loop,
+    )?;
+
+    {
+        let wifi_prov = WifiProvisioning::new()?;
+        wifi_prov.ensure_provisioned(&mut wifi)?;
+    }
 
     thread::scope(|scope| -> anyhow::Result<()> {
         let gpio0 = peripherals.pins.gpio0;

@@ -1,6 +1,7 @@
 pub mod app;
-pub mod input;
-pub mod littlefs;
-pub mod sdcard;
-pub mod video_player;
-pub mod videos;
+mod input;
+mod littlefs;
+mod sdcard;
+mod video_player;
+mod videos;
+mod wifi;

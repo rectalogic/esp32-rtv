@@ -20,3 +20,7 @@ CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
 
 # Memory-map the LittleFS video partition (joltwallet/littlefs).
 CONFIG_LITTLEFS_MMAP_PARTITION=y
+
+# BlueTooth for wifi provisioning
+CONFIG_BT_ENABLED=y
+CONFIG_NIMBLE_ENABLED=y
