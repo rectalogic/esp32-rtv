@@ -11,7 +11,7 @@ peripherals:
         sclk_io_num: 12
         quadwp_io_num: -1
         quadhd_io_num: -1
-        max_transfer_sz: 32000
+        max_transfer_sz: 16384
 
   # I2C bus shared by Touch (FT6336) and Audio Codec (ES8311)
   - name: i2c_shared

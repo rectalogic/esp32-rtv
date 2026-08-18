@@ -24,3 +24,9 @@ CONFIG_LITTLEFS_MMAP_PARTITION=y
 # BlueTooth for wifi provisioning
 CONFIG_BT_ENABLED=y
 CONFIG_NIMBLE_ENABLED=y
+
+# Put WiFi/LWIP buffer pools in PSRAM to keep SRAM free for LCD SPI.
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+
+# Move WiFi/lwIP/BT static .bss (net80211, pp, lwip, bt) to PSRAM.
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
