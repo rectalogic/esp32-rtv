@@ -11,8 +11,11 @@ build-std = ["std", "panic_abort"]
 
 [env]
 MCU = "esp32s3"
-ESP_IDF_VERSION = "v5.5.3"
-ESP_IDF_TOOLS_INSTALL_DIR = "workspace"
+# ESP_IDF_VERSION = "v5.5.3"
+# ESP_IDF_TOOLS_INSTALL_DIR = "workspace"
+# Cherry pick https://github.com/espressif/esp-idf/commit/edb3f9daf1ee605d30711f306e07738e0ddbdcdc onto v5.5.3 tag
+ESP_IDF_VERSION = "branch:v5.5.3-http-patch"
+ESP_IDF_REPOSITORY = "https://github.com/rectalogic/esp-idf.git"
 
 # Uncomment this if you have moved the target dir by setting CARGO_TARGET_DIR or similar.
 # Required for now due to embuild limitations.
