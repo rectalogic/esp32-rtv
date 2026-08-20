@@ -26,6 +26,7 @@ opt-level = "z"
 
 [workspace.dependencies]
 anyhow = "1.0.104"
+glob = "0.3.4"
 
 [dependencies]
 log = "0.4"
@@ -37,6 +38,7 @@ thiserror = "2.0.19"
 
 [build-dependencies]
 embuild = "0.33"
+glob = { workspace = true }
 
 [package.metadata.esp-idf-sys]
 esp_idf_sdkconfig_defaults = ["sdkconfig.defaults", "components/gen_bmgr_codes/board_manager.defaults"]

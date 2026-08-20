@@ -1,6 +1,5 @@
 # Ignore GCC specific flags in clang LSP
 CompileFlags:
-  CompilationDatabase: "target/xtensa-esp32s3-espidf/release/build/esp-idf-sys-3af183b3399b663a/out/build/"
   Remove:
     - -mlongcalls
     - -mtext-section-literals
