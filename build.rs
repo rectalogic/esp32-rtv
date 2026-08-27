@@ -12,7 +12,6 @@ fn main() {
 
 fn symlink_compile_commands() {
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR");
-    println!("cargo:warning={out_dir}"); //XXX
     let out_dir = PathBuf::from(&out_dir);
 
     let build_dir = out_dir

@@ -20,6 +20,7 @@
 #include "esp_video_render.h"
 #include "esp_vui_container.h"
 #include "esp_vui_overlay.h"
+#include "esp_vui_widget_default.h"
 #include "esp_video_render_backend.h"
 #include "esp_gmf_pool.h"
 #include "esp_gmf_ch_cvt.h"
@@ -43,8 +44,9 @@ static esp_gmf_pool_handle_t s_video_pool = NULL;
 static esp_audio_render_handle_t s_audio_render = NULL;
 static esp_gmf_pool_handle_t s_audio_pool = NULL;
 
-static esp_video_render_stream_handle_t s_overlay_stream = NULL;
-static esp_vui_container_handle_t s_overlay_container = NULL;
+static esp_vui_container_handle_t s_color_overlay_container = NULL;
+static esp_vui_container_handle_t s_text_overlay_container = NULL;
+static esp_vui_widget_t *s_text_widget = NULL;
 
 static esp_player_handle_t s_player = NULL;
 
@@ -361,7 +363,7 @@ static void destroy_audio_render(void)
     close_playback_codec();
 }
 
-static esp_video_render_err_t create_video_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
+static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
     esp_video_render_err_t ret = ESP_VIDEO_RENDER_ERR_OK;
 
     // 1. Open a dedicated stream just to host the UI overlay
@@ -377,28 +379,29 @@ static esp_video_render_err_t create_video_overlay(esp_video_render_handle_t ren
         .cached = true, // Cached is efficient for static UI elements, required to set alpha
     };
 
-    if ((ret = esp_video_render_stream_open(render_handle, &stream_info, &s_overlay_stream)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to open overlay stream");
+    esp_video_render_stream_handle_t overlay_stream = NULL;
+    if ((ret = esp_video_render_stream_open(render_handle, &stream_info, &overlay_stream)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_open %d", ret);
         return ret;
     }
 
     // 2. Set Z-Order to 1 so this renders ABOVE the esp_player video stream (which is 0)
-    if ((ret = esp_video_render_stream_set_zorder(s_overlay_stream, 1)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to set overlay z-order");
+    if ((ret = esp_video_render_stream_set_zorder(overlay_stream, 1)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_set_zorder %d", ret);
         return ret;
     }
 
     // Ensure the stream covers the whole screen
     esp_video_render_rect_t disp_rect = { .x = 0, .y = 0, .width = width, .height = height };
-    if ((ret = esp_video_render_stream_set_disp_rect(s_overlay_stream, &disp_rect)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to set overlay disp_rect");
+    if ((ret = esp_video_render_stream_set_disp_rect(overlay_stream, &disp_rect)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_set_disp_rect %d", ret);
         return ret;
     }
 
     // 3. Get the overlay handle attached to this new stream
     esp_vui_overlay_handle_t overlay = NULL;
-    if ((ret = esp_video_render_stream_get_overlay(s_overlay_stream, &overlay)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to get render overlay");
+    if ((ret = esp_video_render_stream_get_overlay(overlay_stream, &overlay)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_get_overlay %d", ret);
         return ret;
     }
     if (overlay == NULL) {
@@ -412,28 +415,115 @@ static esp_video_render_err_t create_video_overlay(esp_video_render_handle_t ren
         .height = height,
     };
     esp_video_render_pos_t container_pos = {.x = 0, .y = 0};
-    if ((ret = esp_vui_container_create(overlay, &container_info, &container_pos, true, &s_overlay_container)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to create overlay container");
+    if ((ret = esp_vui_container_create(overlay, &container_info, &container_pos, true, &s_color_overlay_container)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_container_create %d", ret);
         return ret;
     }
     esp_video_render_clr_t container_bg = {.r = 255, .g = 0, .b = 0};
-    if ((ret = esp_vui_container_set_bg_color(s_overlay_container, &container_bg)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to set container color");
+    if ((ret = esp_vui_container_set_bg_color(s_color_overlay_container, &container_bg)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_container_set_bg_color %d", ret);
         return ret;
     }
-    if ((ret = esp_vui_container_set_alpha(s_overlay_container, 180)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to set container alpha");
+    if ((ret = esp_vui_container_set_alpha(s_color_overlay_container, 180)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_container_set_alpha %d", ret);
         return ret;
     }
-    if ((ret = esp_vui_container_set_visible(s_overlay_container, false)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to set container invisible");
+    if ((ret = esp_vui_container_set_visible(s_color_overlay_container, false)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_container_set_visible %d", ret);
         return ret;
     }
 
     return ret;
 }
 
-static esp_player_err_t create_video_render(const video_render_settings_t *settings)
+static esp_video_render_err_t create_video_text_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
+    esp_video_render_err_t ret = ESP_VIDEO_RENDER_ERR_OK;
+
+    // 1. Open a dedicated stream just to host the UI overlay
+    esp_video_render_stream_info_t stream_info = {
+        .info = {
+            // We won't write actual video frames to this stream,
+            // but the renderer requires a valid format/size to initialize it.
+            .format = ESP_VIDEO_RENDER_FORMAT_RGB565,
+            .width = width,
+            .height = height,
+            .fps = 0,
+        },
+    };
+
+    esp_video_render_stream_handle_t overlay_stream = NULL;
+    if ((ret = esp_video_render_stream_open(render_handle, &stream_info, &overlay_stream)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_open %d", ret);
+        return ret;
+    }
+
+    // 2. Set Z-Order to 2 so this renders ABOVE the esp_player video stream (which is 0) and the color overlay
+    if ((ret = esp_video_render_stream_set_zorder(overlay_stream, 2)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_set_zorder %d", ret);
+        return ret;
+    }
+
+    // Ensure the stream covers the whole screen
+    esp_video_render_rect_t disp_rect = { .x = 0, .y = 0, .width = width, .height = height };
+    if ((ret = esp_video_render_stream_set_disp_rect(overlay_stream, &disp_rect)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_set_disp_rect %d", ret);
+        return ret;
+    }
+
+    // 3. Get the overlay handle attached to this new stream
+    esp_vui_overlay_handle_t overlay = NULL;
+    if ((ret = esp_video_render_stream_get_overlay(overlay_stream, &overlay)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_video_render_stream_get_overlay %d", ret);
+        return ret;
+    }
+    if (overlay == NULL) {
+        ESP_LOGE(TAG, "Failed to get overlay handle");
+        return ESP_VIDEO_RENDER_ERR_FAIL;
+    }
+
+    esp_video_render_frame_info_t container_info = {
+        .format = ESP_VIDEO_RENDER_FORMAT_RGB565,
+        .width = width,
+        .height = height,
+    };
+    esp_video_render_pos_t container_pos = {.x = 0, .y = 0};
+    if ((ret = esp_vui_container_create(overlay, &container_info, &container_pos, false, &s_text_overlay_container)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_container_create %d", ret);
+        return ret;
+    }
+    s_text_widget = esp_vui_text_widget_init(s_text_overlay_container, &container_info, &container_pos, container_info.width, container_info.height);
+    if (s_text_widget == NULL) {
+        ESP_LOGE(TAG, "esp_vui_text_widget_init");
+        return ESP_VIDEO_RENDER_ERR_FAIL;
+    }
+    if ((ret = esp_vui_text_widget_set_font(s_text_widget, "/littlefs/assets/VeraBd.ttf", 32)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_text_widget_set_font %d", ret);
+        return ret;
+    }
+    esp_video_render_clr_t bg = {.r = 0, .g = 0, .b = 255};      // Blue background
+    esp_video_render_clr_t fg = {.r = 255, .g = 255, .b = 255};  // White text
+    if ((ret = esp_vui_text_widget_set_bg_color(s_text_widget, &bg, false)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_text_widget_set_bg_color %d", ret);
+        return ret;
+    }
+    if ((ret = esp_vui_text_widget_set_text_color(s_text_widget, &fg)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_text_widget_set_text_color %d", ret);
+        return ret;
+    }
+    if ((ret = esp_vui_text_widget_set_align(s_text_widget, 1 /*center*/, 1 /*middle*/)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_text_widget_set_align %d", ret);
+        return ret;
+    }
+
+    if ((ret = esp_vui_container_set_visible(s_text_overlay_container, false)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_container_set_visible %d", ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+static esp_player_err_t create_video_render(const video_render_settings_t *settings, bool enable_text)
 {
 #ifdef CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
     video_player_reconfig_lcd();
@@ -491,8 +581,14 @@ static esp_player_err_t create_video_render(const video_render_settings_t *setti
              (unsigned)lcd_cfg->lcd_width, (unsigned)lcd_cfg->lcd_height,
              (uint32_t)lcd_backend_cfg.out_format);
 
-    if (create_video_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height) != ESP_VIDEO_RENDER_ERR_OK) {
+    if (create_video_color_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height) != ESP_VIDEO_RENDER_ERR_OK) {
         goto fail;
+    }
+
+    if (enable_text) {
+        if (create_video_text_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height) != ESP_VIDEO_RENDER_ERR_OK) {
+            goto fail;
+        }
     }
 
     return ESP_PLAYER_ERR_OK;
@@ -508,8 +604,9 @@ fail:
 
 static void destroy_video_render(void)
 {
-    s_overlay_container = NULL;
-    s_overlay_stream = NULL;
+    s_color_overlay_container = NULL;
+    s_text_overlay_container = NULL;
+    s_text_widget = NULL;
 
     if (s_video_render) {
         esp_video_render_destroy((esp_video_render_handle_t)s_video_render);
@@ -524,7 +621,7 @@ static void destroy_video_render(void)
 #endif  /* CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT */
 }
 
-static esp_player_err_t video_player_setup(const video_render_settings_t *render_settings)
+static esp_player_err_t video_player_setup(const video_render_settings_t *render_settings, bool enable_text)
 {
     if (render_settings == NULL || render_settings->video_fps == 0) {
         return ESP_PLAYER_ERR_INVALID_ARG;
@@ -542,7 +639,7 @@ static esp_player_err_t video_player_setup(const video_render_settings_t *render
         return ESP_PLAYER_ERR_FAIL;
     }
 
-    if (create_video_render(render_settings) != ESP_PLAYER_ERR_OK) {
+    if (create_video_render(render_settings, enable_text) != ESP_PLAYER_ERR_OK) {
         ESP_LOGE(TAG, "create_video_render failed");
         destroy_audio_render();
         unregister_media_defaults();
@@ -564,10 +661,11 @@ static esp_player_err_t create_video_player()
         return ESP_PLAYER_ERR_FAIL;
     }
 
+    esp_audio_render_err_t aret = ESP_AUDIO_RENDER_ERR_OK;
     esp_audio_render_stream_handle_t audio_stream = NULL;
-    if (esp_audio_render_stream_get(s_audio_render, ESP_AUDIO_RENDER_FIRST_STREAM,
-                                    &audio_stream) != ESP_AUDIO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "Failed to get audio render stream");
+    if ((aret = esp_audio_render_stream_get(s_audio_render, ESP_AUDIO_RENDER_FIRST_STREAM,
+                                    &audio_stream)) != ESP_AUDIO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_audio_render_stream_get %d", aret);
         return ESP_PLAYER_ERR_FAIL;
     }
 
@@ -575,9 +673,10 @@ static esp_player_err_t create_video_player()
     player_cfg.audio_render_hd = audio_stream;
     player_cfg.video_render_hd = s_video_render;
 
-    if (esp_player_init(&player_cfg, &s_player) != ESP_PLAYER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_player_init failed");
-        return ESP_PLAYER_ERR_FAIL;
+    esp_player_err_t ret = ESP_PLAYER_ERR_OK;
+    if ((ret = esp_player_init(&player_cfg, &s_player)) != ESP_PLAYER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_player_init %d", ret);
+        return ret;
     }
 
     return ESP_PLAYER_ERR_OK;
@@ -604,16 +703,16 @@ static void video_player_teardown(void)
 }
 
 
-esp_player_err_t initialize_video_system(void)
+esp_player_err_t initialize_video_system(bool enable_text)
 {
     esp_player_err_t ret = ESP_PLAYER_ERR_OK;
     video_render_settings_t render_settings = VIDEO_RENDER_SETTINGS_DEFAULT();
-    if ((ret = video_player_setup(&render_settings)) != ESP_PLAYER_ERR_OK) {
-        ESP_LOGE(TAG, "video_player_setup failed: %d", ret);
+    if ((ret = video_player_setup(&render_settings, enable_text)) != ESP_PLAYER_ERR_OK) {
+        ESP_LOGE(TAG, "video_player_setup %d", ret);
         goto out;
     }
     if ((ret = create_video_player()) != ESP_PLAYER_ERR_OK) {
-        ESP_LOGE(TAG, "video_player_new failed: %d", ret);
+        ESP_LOGE(TAG, "video_player_new %d", ret);
         goto out;
     }
     return ret;
@@ -648,9 +747,25 @@ esp_player_err_t play_url(const char* url) {
 }
 
 esp_err_t hilite_video(bool hilite) {
-    if (s_overlay_container == NULL) return ESP_FAIL;
+    if (s_color_overlay_container == NULL) return ESP_FAIL;
 
-    if (esp_vui_container_set_visible(s_overlay_container, hilite) != ESP_VIDEO_RENDER_ERR_OK) {
+    if (esp_vui_container_set_visible(s_color_overlay_container, hilite) != ESP_VIDEO_RENDER_ERR_OK) {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+esp_err_t display_text(const char* text) {
+    if (s_text_widget == NULL) return ESP_FAIL;
+
+    esp_video_render_err_t ret = ESP_VIDEO_RENDER_ERR_OK;
+
+    if ((ret = esp_vui_text_widget_set_text(s_text_widget, text)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_text_widget_set_text %d", ret);
+        return ESP_FAIL;
+    }
+    if ((ret = esp_vui_container_set_visible(s_text_overlay_container, text != NULL)) != ESP_VIDEO_RENDER_ERR_OK) {
+        ESP_LOGE(TAG, "esp_vui_container_set_visible %d", ret);
         return ESP_FAIL;
     }
     return ESP_OK;

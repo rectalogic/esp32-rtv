@@ -6,6 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
+
 RUN apt-get update \
     && apt-get install -y git curl gcc clang clangd ninja-build unzip libudev-dev tar xz-utils \
         libusb-1.0-0 libssl-dev pkg-config python3 python3-pip python3-venv libpython3-all-dev python3-virtualenv \

@@ -4,7 +4,7 @@ use crate::{
     sdcard::SdCard,
     video_player::VideoPlayer,
     videos::find_videos,
-    wifi::WifiProvisioning,
+    wifi::{SERVICE_NAME, WifiProvisioning},
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
@@ -15,14 +15,15 @@ use esp_idf_svc::{
 use std::thread;
 use std::time::Duration;
 
-const INTERSTITIAL: &str = "/littlefs/interstitial.mp4";
+const INTERSTITIAL: &str = "/littlefs/assets/interstitial.mp4";
 const LONG_PRESS_MS: u64 = 500;
 
 pub fn app() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
     let sys_loop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
-    let video_player = VideoPlayer::new()?;
+    let littlefs = Littlefs::new();
+    let video_player = VideoPlayer::new(littlefs.as_ref().ok())?;
 
     let mut wifi = BlockingWifi::wrap(
         EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
@@ -30,8 +31,11 @@ pub fn app() -> anyhow::Result<()> {
     )?;
 
     {
+        let message = format!("Provisioning WiFi for {SERVICE_NAME}");
+        video_player.display_text(Some(&message))?;
         let wifi_prov = WifiProvisioning::new()?;
         wifi_prov.ensure_provisioned(&mut wifi)?;
+        video_player.display_text(None)?;
     }
 
     thread::scope(|scope| -> anyhow::Result<()> {
@@ -57,17 +61,13 @@ pub fn app() -> anyhow::Result<()> {
         let mut videos = None;
 
         let sdcard = SdCard::new();
-        let littlefs = Littlefs::new();
 
         if littlefs.is_ok() {
             if matches!(std::fs::exists(INTERSTITIAL), Ok(true)) {
                 interstitial = Some(INTERSTITIAL);
             }
             if sdcard.is_err() {
-                let mut all_videos = find_videos("/littlefs")?;
-                if interstitial.is_some() {
-                    all_videos.retain(|f| f != INTERSTITIAL);
-                }
+                let all_videos = find_videos("/littlefs/videos")?;
                 videos = Some(all_videos);
             }
         }

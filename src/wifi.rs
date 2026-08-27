@@ -10,6 +10,8 @@ use esp_idf_svc::{
 };
 use std::{ffi::CString, ptr};
 
+pub const SERVICE_NAME: &str = "PROV_MINITV";
+
 pub struct WifiProvisioning(());
 
 impl WifiProvisioning {
@@ -32,10 +34,7 @@ impl WifiProvisioning {
         if !self.is_provisioned()? {
             wifi.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
             wifi.start()?;
-            self.start_provisioning(
-                wifi_prov_security_WIFI_PROV_SECURITY_1,
-                "PROV_ESP32", // Service Name
-            )?;
+            self.start_provisioning(wifi_prov_security_WIFI_PROV_SECURITY_1, SERVICE_NAME)?;
             self.wait();
             self.stop();
         } else {

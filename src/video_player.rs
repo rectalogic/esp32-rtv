@@ -1,21 +1,24 @@
 use esp_idf_svc::sys::{
     EspError, esp,
     video_player::{
-        deinitialize_video_system, esp_player_err_t, hilite_video, initialize_video_system,
-        play_url,
+        deinitialize_video_system, display_text, esp_player_err_t, hilite_video,
+        initialize_video_system, play_url,
     },
 };
-use std::ffi::CString;
+use std::{ffi::CString, ptr};
+
+use crate::littlefs::Littlefs;
 
 pub struct VideoPlayer {
-    _private: (),
+    supports_text: bool,
 }
 
 impl VideoPlayer {
-    pub fn new() -> Result<Self, Error> {
-        let result = Error::from(unsafe { initialize_video_system() });
+    pub fn new(littlefs: Option<&Littlefs>) -> Result<Self, Error> {
+        let supports_text = littlefs.is_some();
+        let result = Error::from(unsafe { initialize_video_system(supports_text) });
         if result == Error::Ok {
-            Ok(Self { _private: () })
+            Ok(Self { supports_text })
         } else {
             Err(result)
         }
@@ -28,6 +31,19 @@ impl VideoPlayer {
 
     pub fn hilite_video(&self, hilite: bool) -> Result<(), EspError> {
         esp!(unsafe { hilite_video(hilite) })
+    }
+
+    pub fn display_text(&self, text: Option<&str>) -> Result<(), Error> {
+        if !self.supports_text {
+            return Ok(());
+        }
+        if let Some(text) = text {
+            let c_text = CString::new(text).map_err(|_| Error::InvalidArg)?;
+            esp!(unsafe { display_text(c_text.as_ptr()) })?;
+        } else {
+            esp!(unsafe { display_text(ptr::null()) })?;
+        }
+        Ok(())
     }
 }
 
@@ -55,6 +71,8 @@ pub enum Error {
     NotSupport,
     #[error("Operation not allowed in current player state")]
     InvalidState,
+    #[error("ESP: {0}")]
+    Esp(#[from] EspError),
     #[error("Unknown: {0}")]
     Unknown(esp_player_err_t),
 }

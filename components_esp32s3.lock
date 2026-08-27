@@ -169,25 +169,6 @@ dependencies:
     - esp32s31
     - esp32p4
     version: 1.3.8
-  espressif/esp_hls_stream:
-    component_hash: 6e03713dbb5e8714da75991f37e8129855f3fee46c72375a89ec3cb10dbe5854
-    dependencies:
-    - name: espressif/esp_extractor
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^1.0.0
-    - name: espressif/gmf_io
-      registry_url: https://components.espressif.com
-      require: private
-      version: ^1.0
-    - name: espressif/media_lib_sal
-      registry_url: https://components.espressif.com
-      require: private
-      version: '*'
-    source:
-      registry_url: https://components.espressif.com
-      type: service
-    version: 1.0.3
   espressif/esp_image_effects:
     component_hash: a9a9a18173dc338f94559e61ebbfc1aeff5ebb2f7703e7e3d2431c5bb3450fe6
     dependencies:
@@ -362,6 +343,16 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 1.0.0~2
+  espressif/freetype:
+    component_hash: cd5e2d8458e6e8d73f1120ac474467cabb669d8ea4b25050bf6a348c1e89225e
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 2.13.3~1
   espressif/gmf_audio:
     component_hash: 41371f80510635c1c2cc69b7828b5ced06bfce49e2b34b652830a36a99a0a6b8
     dependencies:

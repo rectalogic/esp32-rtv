@@ -1,6 +1,5 @@
 use anyhow::Context;
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use fs_extra::dir::get_dir_content;
 use glob::glob;
 use std::{
     env, fs,
@@ -157,64 +156,51 @@ fn embed(videos_path: impl AsRef<Path>, workspace_root: impl AsRef<Path>) -> any
     const LITTLEFS_BLOCK_SIZE_BYTES: u64 = 4096;
     /// littlefs partition size (partitions.csv); the image must not exceed this.
     const LITTLEFS_PARTITION_SIZE: u64 = 0xCF0000;
-    /// LittleFS metadata reserved per file entry (entry struct + name + mtime attr).
-    const LITTLEFS_ENTRY_SIZE: u64 = 128;
 
-    let videos_path = videos_path.as_ref();
-    let dir_content = get_dir_content(videos_path).context("Failed to read video directory")?;
-    let fs_size = dir_content.dir_size;
-    let file_count = dir_content.files.len() as u64;
+    let littlefs_path = workspace_root.as_ref().join("target/littlefs");
+    let _ = fs::remove_dir_all(&littlefs_path);
+    fs::create_dir_all(&littlefs_path)?;
 
-    // Image size = file data rounded to blocks + littlefs metadata overhead:
-    // 2 blocks for the root directory metadata pair, 1 spare block for metadata
-    // compaction during the image build, plus one entry (LITTLEFS_ENTRY_SIZE)
-    // per file and one metadata pair (2 blocks) per subdirectory.
-    let data_bytes = fs_size.div_ceil(LITTLEFS_BLOCK_SIZE_BYTES) * LITTLEFS_BLOCK_SIZE_BYTES;
-    let entry_blocks = (file_count * LITTLEFS_ENTRY_SIZE).div_ceil(LITTLEFS_BLOCK_SIZE_BYTES);
-    let dir_blocks = dir_content.directories.len() as u64 * 2;
-    let overhead_blocks = 3 + entry_blocks + dir_blocks;
-    let image_size = data_bytes + overhead_blocks * LITTLEFS_BLOCK_SIZE_BYTES;
+    #[cfg(unix)]
+    let symlink = std::os::unix::fs::symlink;
+    #[cfg(windows)]
+    let symlink = std::os::windows::fs::symlink_dir;
 
-    if image_size > LITTLEFS_PARTITION_SIZE {
-        return Err(anyhow::anyhow!(
-            "Videos need a {:#x}-byte image ({:#x} bytes of files + littlefs metadata), \
-             which exceeds the {:#x}-byte littlefs partition. Remove content or enlarge the \
-             partition in partitions.csv.",
-            image_size,
-            fs_size,
-            LITTLEFS_PARTITION_SIZE
-        ));
-    }
+    symlink(
+        workspace_root.as_ref().join("assets"),
+        littlefs_path.join("assets"),
+    )?;
+    symlink(
+        videos_path.as_ref().canonicalize()?,
+        littlefs_path.join("videos"),
+    )?;
 
-    let littlefs_python = ensure_littlefs_python(workspace_root.as_ref())?;
-    println!(
-        "==> Building {}-byte LittleFS image for {} files ({:.2} MB) from {}...",
-        image_size,
-        file_count,
-        fs_size as f64 / (1024.0 * 1024.0),
-        videos_path.display()
-    );
-
-    let status = Command::new(littlefs_python)
+    let status = Command::new("/bin/uvx")
         .current_dir(workspace_root.as_ref())
         .args([
+            "littlefs-python@0.18.0",
             "create",
-            videos_path
+            littlefs_path
                 .to_str()
                 .ok_or(anyhow::anyhow!("Invalid video path"))?,
             "target/littlefs.bin",
             "-v",
-            &format!("--fs-size=0x{:X}", image_size),
             "--name-max",
             "64", // Must match CONFIG_LITTLEFS_OBJ_NAME_LEN (default 64) in the littlefs Kconfig.
+            &format!(
+                "--block-count={}",
+                LITTLEFS_PARTITION_SIZE / LITTLEFS_BLOCK_SIZE_BYTES
+            ),
             "--block-size",
             &LITTLEFS_BLOCK_SIZE_BYTES.to_string(),
+            "--compact",
+            "--no-pad",
         ])
         .status()
-        .context("littlefsgen failed")?;
+        .context("littlefs failed")?;
 
     if !status.success() {
-        return Err(anyhow::anyhow!("littlefsgen failed"));
+        return Err(anyhow::anyhow!("littlefs failed"));
     }
     Ok(())
 }
@@ -298,46 +284,6 @@ fn monitor(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
         .status()
         .context("`espflash` monitor failed")?;
     Ok(())
-}
-
-/// Returns the path to the `littlefs-python` CLI, installing it into the
-/// embuild-managed IDF virtualenv on first use (same tool the littlefs
-/// component uses via its `littlefs_create_partition_image` CMake helper).
-fn ensure_littlefs_python(workspace_root: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
-    let python_path = find_python_path(workspace_root.as_ref())?;
-    let bin_dir = python_path
-        .parent()
-        .ok_or(anyhow::anyhow!("Failed to resolve Python bin directory"))?;
-    let littlefs_python = if cfg!(windows) {
-        bin_dir.join("littlefs-python.exe")
-    } else {
-        bin_dir.join("littlefs-python")
-    };
-
-    if !littlefs_python.exists() {
-        println!("==> Installing littlefs-python into IDF virtualenv...");
-        ensure_espidf_components(workspace_root.as_ref())?;
-        let requirements = find_latest_espidf_path(
-            workspace_root.as_ref(),
-            "out/managed_components/joltwallet__littlefs/image-building-requirements.txt",
-        )?;
-        let status = Command::new(&python_path)
-            .args([
-                "-m",
-                "pip",
-                "install",
-                "-r",
-                requirements
-                    .to_str()
-                    .ok_or(anyhow::anyhow!("Invalid requirements path"))?,
-            ])
-            .status()
-            .context("Failed to install littlefs-python")?;
-        if !status.success() {
-            return Err(anyhow::anyhow!("Failed to install littlefs-python"));
-        }
-    }
-    Ok(littlefs_python)
 }
 
 fn find_python_path(workspace_root: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
