@@ -363,9 +363,17 @@ static void destroy_audio_render(void)
     close_playback_codec();
 }
 
-static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
-    esp_video_render_err_t ret = ESP_VIDEO_RENDER_ERR_OK;
+#define CHECK_RENDER(func, args)                                             \
+    do {                                                                     \
+        esp_video_render_err_t ret_ = func args;                             \
+        if (ret_ != ESP_VIDEO_RENDER_ERR_OK) {                               \
+            ESP_LOGE(TAG, #func " %d", ret_);                        \
+            return ret_;                                                     \
+        }                                                                    \
+    } while (0)
 
+
+static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
     // 1. Open a dedicated stream just to host the UI overlay
     esp_video_render_stream_info_t stream_info = {
         .info = {
@@ -376,34 +384,22 @@ static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle
             .height = height,
             .fps = 0,
         },
-        .cached = true, // Cached is efficient for static UI elements, required to set alpha
+        .cached = false, // Cached is efficient for static UI elements, required to set alpha
     };
 
     esp_video_render_stream_handle_t overlay_stream = NULL;
-    if ((ret = esp_video_render_stream_open(render_handle, &stream_info, &overlay_stream)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_open %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_open, (render_handle, &stream_info, &overlay_stream));
 
     // 2. Set Z-Order to 1 so this renders ABOVE the esp_player video stream (which is 0)
-    if ((ret = esp_video_render_stream_set_zorder(overlay_stream, 1)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_set_zorder %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_set_zorder, (overlay_stream, 1));
 
     // Ensure the stream covers the whole screen
     esp_video_render_rect_t disp_rect = { .x = 0, .y = 0, .width = width, .height = height };
-    if ((ret = esp_video_render_stream_set_disp_rect(overlay_stream, &disp_rect)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_set_disp_rect %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_set_disp_rect, (overlay_stream, &disp_rect));
 
     // 3. Get the overlay handle attached to this new stream
     esp_vui_overlay_handle_t overlay = NULL;
-    if ((ret = esp_video_render_stream_get_overlay(overlay_stream, &overlay)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_get_overlay %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_get_overlay, (overlay_stream, &overlay));
     if (overlay == NULL) {
         ESP_LOGE(TAG, "Failed to get overlay handle");
         return ESP_VIDEO_RENDER_ERR_FAIL;
@@ -415,30 +411,16 @@ static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle
         .height = height,
     };
     esp_video_render_pos_t container_pos = {.x = 0, .y = 0};
-    if ((ret = esp_vui_container_create(overlay, &container_info, &container_pos, true, &s_color_overlay_container)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_container_create %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_vui_container_create, (overlay, &container_info, &container_pos, true, &s_color_overlay_container));
     esp_video_render_clr_t container_bg = {.r = 255, .g = 0, .b = 0};
-    if ((ret = esp_vui_container_set_bg_color(s_color_overlay_container, &container_bg)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_container_set_bg_color %d", ret);
-        return ret;
-    }
-    if ((ret = esp_vui_container_set_alpha(s_color_overlay_container, 180)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_container_set_alpha %d", ret);
-        return ret;
-    }
-    if ((ret = esp_vui_container_set_visible(s_color_overlay_container, false)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_container_set_visible %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_vui_container_set_bg_color, (s_color_overlay_container, &container_bg));
+    CHECK_RENDER(esp_vui_container_set_alpha, (s_color_overlay_container, 180));
+    CHECK_RENDER(esp_vui_container_set_visible, (s_color_overlay_container, false));
 
-    return ret;
+    return ESP_VIDEO_RENDER_ERR_OK;
 }
 
-static esp_video_render_err_t create_video_text_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
-    esp_video_render_err_t ret = ESP_VIDEO_RENDER_ERR_OK;
-
+static esp_video_render_err_t create_video_text_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height, const uint8_t* font_data, int font_data_len) {
     // 1. Open a dedicated stream just to host the UI overlay
     esp_video_render_stream_info_t stream_info = {
         .info = {
@@ -452,30 +434,18 @@ static esp_video_render_err_t create_video_text_overlay(esp_video_render_handle_
     };
 
     esp_video_render_stream_handle_t overlay_stream = NULL;
-    if ((ret = esp_video_render_stream_open(render_handle, &stream_info, &overlay_stream)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_open %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_open, (render_handle, &stream_info, &overlay_stream));
 
     // 2. Set Z-Order to 2 so this renders ABOVE the esp_player video stream (which is 0) and the color overlay
-    if ((ret = esp_video_render_stream_set_zorder(overlay_stream, 2)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_set_zorder %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_set_zorder, (overlay_stream, 2));
 
     // Ensure the stream covers the whole screen
     esp_video_render_rect_t disp_rect = { .x = 0, .y = 0, .width = width, .height = height };
-    if ((ret = esp_video_render_stream_set_disp_rect(overlay_stream, &disp_rect)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_set_disp_rect %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_set_disp_rect, (overlay_stream, &disp_rect));
 
     // 3. Get the overlay handle attached to this new stream
     esp_vui_overlay_handle_t overlay = NULL;
-    if ((ret = esp_video_render_stream_get_overlay(overlay_stream, &overlay)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_video_render_stream_get_overlay %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_video_render_stream_get_overlay, (overlay_stream, &overlay));
     if (overlay == NULL) {
         ESP_LOGE(TAG, "Failed to get overlay handle");
         return ESP_VIDEO_RENDER_ERR_FAIL;
@@ -487,43 +457,26 @@ static esp_video_render_err_t create_video_text_overlay(esp_video_render_handle_
         .height = height,
     };
     esp_video_render_pos_t container_pos = {.x = 0, .y = 0};
-    if ((ret = esp_vui_container_create(overlay, &container_info, &container_pos, false, &s_text_overlay_container)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_container_create %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_vui_container_create, (overlay, &container_info, &container_pos, false, &s_text_overlay_container));
     s_text_widget = esp_vui_text_widget_init(s_text_overlay_container, &container_info, &container_pos, container_info.width, container_info.height);
     if (s_text_widget == NULL) {
         ESP_LOGE(TAG, "esp_vui_text_widget_init");
         return ESP_VIDEO_RENDER_ERR_FAIL;
     }
-    if ((ret = esp_vui_text_widget_set_font(s_text_widget, "/littlefs/assets/VeraBd.ttf", 32)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_text_widget_set_font %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_vui_text_widget_set_font_from_mem, (s_text_widget, "Bitstream Vera Sans Bold", font_data, font_data_len, 32));
     esp_video_render_clr_t bg = {.r = 0, .g = 0, .b = 255};      // Blue background
     esp_video_render_clr_t fg = {.r = 255, .g = 255, .b = 255};  // White text
-    if ((ret = esp_vui_text_widget_set_bg_color(s_text_widget, &bg, false)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_text_widget_set_bg_color %d", ret);
-        return ret;
-    }
-    if ((ret = esp_vui_text_widget_set_text_color(s_text_widget, &fg)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_text_widget_set_text_color %d", ret);
-        return ret;
-    }
-    if ((ret = esp_vui_text_widget_set_align(s_text_widget, 1 /*center*/, 1 /*middle*/)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_text_widget_set_align %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_vui_text_widget_set_bg_color, (s_text_widget, &bg, false));
+    CHECK_RENDER(esp_vui_text_widget_set_text_color, (s_text_widget, &fg));
+    CHECK_RENDER(esp_vui_text_widget_set_align, (s_text_widget, 1 /*center*/, 1 /*middle*/));
+    CHECK_RENDER(esp_vui_text_widget_set_overflow, (s_text_widget, 1 /*wrap*/));
 
-    if ((ret = esp_vui_container_set_visible(s_text_overlay_container, false)) != ESP_VIDEO_RENDER_ERR_OK) {
-        ESP_LOGE(TAG, "esp_vui_container_set_visible %d", ret);
-        return ret;
-    }
+    CHECK_RENDER(esp_vui_container_set_visible, (s_text_overlay_container, false));
 
-    return ret;
+    return ESP_VIDEO_RENDER_ERR_OK;
 }
 
-static esp_player_err_t create_video_render(const video_render_settings_t *settings, bool enable_text)
+static esp_player_err_t create_video_render(const video_render_settings_t *settings, const uint8_t* font_data, int font_data_len)
 {
 #ifdef CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
     video_player_reconfig_lcd();
@@ -585,10 +538,8 @@ static esp_player_err_t create_video_render(const video_render_settings_t *setti
         goto fail;
     }
 
-    if (enable_text) {
-        if (create_video_text_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height) != ESP_VIDEO_RENDER_ERR_OK) {
-            goto fail;
-        }
+    if (create_video_text_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height, font_data, font_data_len) != ESP_VIDEO_RENDER_ERR_OK) {
+        goto fail;
     }
 
     return ESP_PLAYER_ERR_OK;
@@ -621,7 +572,7 @@ static void destroy_video_render(void)
 #endif  /* CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT */
 }
 
-static esp_player_err_t video_player_setup(const video_render_settings_t *render_settings, bool enable_text)
+static esp_player_err_t video_player_setup(const video_render_settings_t *render_settings, const uint8_t* font_data, int font_data_len)
 {
     if (render_settings == NULL || render_settings->video_fps == 0) {
         return ESP_PLAYER_ERR_INVALID_ARG;
@@ -639,7 +590,7 @@ static esp_player_err_t video_player_setup(const video_render_settings_t *render
         return ESP_PLAYER_ERR_FAIL;
     }
 
-    if (create_video_render(render_settings, enable_text) != ESP_PLAYER_ERR_OK) {
+    if (create_video_render(render_settings, font_data, font_data_len) != ESP_PLAYER_ERR_OK) {
         ESP_LOGE(TAG, "create_video_render failed");
         destroy_audio_render();
         unregister_media_defaults();
@@ -703,11 +654,11 @@ static void video_player_teardown(void)
 }
 
 
-esp_player_err_t initialize_video_system(bool enable_text)
+esp_player_err_t initialize_video_system(const uint8_t* font_data, int font_data_len)
 {
     esp_player_err_t ret = ESP_PLAYER_ERR_OK;
     video_render_settings_t render_settings = VIDEO_RENDER_SETTINGS_DEFAULT();
-    if ((ret = video_player_setup(&render_settings, enable_text)) != ESP_PLAYER_ERR_OK) {
+    if ((ret = video_player_setup(&render_settings, font_data, font_data_len)) != ESP_PLAYER_ERR_OK) {
         ESP_LOGE(TAG, "video_player_setup %d", ret);
         goto out;
     }

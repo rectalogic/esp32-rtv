@@ -22,8 +22,7 @@ pub fn app() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
     let sys_loop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
-    let littlefs = Littlefs::new();
-    let video_player = VideoPlayer::new(littlefs.as_ref().ok())?;
+    let video_player = VideoPlayer::new()?;
 
     let mut wifi = BlockingWifi::wrap(
         EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
@@ -60,6 +59,7 @@ pub fn app() -> anyhow::Result<()> {
         let mut interstitial = None;
         let mut videos = None;
 
+        let littlefs = Littlefs::new();
         let sdcard = SdCard::new();
 
         if littlefs.is_ok() {

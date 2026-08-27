@@ -5,20 +5,22 @@ use esp_idf_svc::sys::{
         initialize_video_system, play_url,
     },
 };
-use std::{ffi::CString, ptr};
+use std::{
+    ffi::{CString, c_int},
+    ptr,
+};
 
-use crate::littlefs::Littlefs;
+static FONT_DATA: &[u8] = include_bytes!("VeraBd.ttf");
 
-pub struct VideoPlayer {
-    supports_text: bool,
-}
+pub struct VideoPlayer(());
 
 impl VideoPlayer {
-    pub fn new(littlefs: Option<&Littlefs>) -> Result<Self, Error> {
-        let supports_text = littlefs.is_some();
-        let result = Error::from(unsafe { initialize_video_system(supports_text) });
+    pub fn new() -> Result<Self, Error> {
+        let result = Error::from(unsafe {
+            initialize_video_system(FONT_DATA.as_ptr(), FONT_DATA.len() as c_int)
+        });
         if result == Error::Ok {
-            Ok(Self { supports_text })
+            Ok(Self(()))
         } else {
             Err(result)
         }
@@ -34,9 +36,6 @@ impl VideoPlayer {
     }
 
     pub fn display_text(&self, text: Option<&str>) -> Result<(), Error> {
-        if !self.supports_text {
-            return Ok(());
-        }
         if let Some(text) = text {
             let c_text = CString::new(text).map_err(|_| Error::InvalidArg)?;
             esp!(unsafe { display_text(c_text.as_ptr()) })?;
