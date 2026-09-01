@@ -230,6 +230,7 @@ fn encode_video(
             "-ar", "16000",
             "-ac", "1",
             "-vf", "scale=320x240:force_original_aspect_ratio=decrease:reset_sar=1:flags=lanczos,pad=320:240:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
+            "-movflags", "+faststart",
             "-y",
             output_path.to_str().ok_or(anyhow::anyhow!("Invalid output path {}", output_path.display()))?,
         ])
@@ -267,6 +268,7 @@ fn encode_interstitial(
             "-x264-params", "scenecut=0",
             "-crf", "23",
             "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
             "-y", output_path.to_str().ok_or(anyhow::anyhow!("Invalid output path {}", output_path.display()))?,
         ])
         .status()
