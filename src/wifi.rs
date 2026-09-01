@@ -71,7 +71,7 @@ impl WifiProvisioning {
         }
     }
 
-    fn is_provisioned(&self) -> Result<bool, EspError> {
+    pub fn is_provisioned(&self) -> Result<bool, EspError> {
         let mut provisioned: bool = false;
         esp!(unsafe { wifi_prov_mgr_is_provisioned(&mut provisioned) })?;
         Ok(provisioned)

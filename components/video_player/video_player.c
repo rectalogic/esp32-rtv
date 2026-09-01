@@ -372,9 +372,7 @@ static void destroy_audio_render(void)
         }                                                                    \
     } while (0)
 
-
-static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height) {
-    // 1. Open a dedicated stream just to host the UI overlay
+static esp_video_render_err_t create_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height, esp_vui_overlay_handle_t* overlay) {
     esp_video_render_stream_info_t stream_info = {
         .info = {
             // We won't write actual video frames to this stream,
@@ -384,7 +382,6 @@ static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle
             .height = height,
             .fps = 0,
         },
-        .cached = false, // Cached is efficient for static UI elements, required to set alpha
     };
 
     esp_video_render_stream_handle_t overlay_stream = NULL;
@@ -397,14 +394,17 @@ static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle
     esp_video_render_rect_t disp_rect = { .x = 0, .y = 0, .width = width, .height = height };
     CHECK_RENDER(esp_video_render_stream_set_disp_rect, (overlay_stream, &disp_rect));
 
-    // 3. Get the overlay handle attached to this new stream
-    esp_vui_overlay_handle_t overlay = NULL;
-    CHECK_RENDER(esp_video_render_stream_get_overlay, (overlay_stream, &overlay));
+    CHECK_RENDER(esp_video_render_stream_get_overlay, (overlay_stream, overlay));
     if (overlay == NULL) {
         ESP_LOGE(TAG, "Failed to get overlay handle");
         return ESP_VIDEO_RENDER_ERR_FAIL;
     }
 
+    return ESP_VIDEO_RENDER_ERR_OK;
+}
+
+
+static esp_video_render_err_t create_video_color_overlay(esp_vui_overlay_handle_t overlay, uint16_t width, uint16_t height) {
     esp_video_render_frame_info_t container_info = {
         .format = ESP_VIDEO_RENDER_FORMAT_RGB565,
         .width = width,
@@ -420,38 +420,8 @@ static esp_video_render_err_t create_video_color_overlay(esp_video_render_handle
     return ESP_VIDEO_RENDER_ERR_OK;
 }
 
-static esp_video_render_err_t create_video_text_overlay(esp_video_render_handle_t render_handle, uint16_t width, uint16_t height, const uint8_t* font_data, int font_data_len) {
-    // 1. Open a dedicated stream just to host the UI overlay
-    esp_video_render_stream_info_t stream_info = {
-        .info = {
-            // We won't write actual video frames to this stream,
-            // but the renderer requires a valid format/size to initialize it.
-            .format = ESP_VIDEO_RENDER_FORMAT_RGB565,
-            .width = width,
-            .height = height,
-            .fps = 0,
-        },
-    };
-
-    esp_video_render_stream_handle_t overlay_stream = NULL;
-    CHECK_RENDER(esp_video_render_stream_open, (render_handle, &stream_info, &overlay_stream));
-
-    // 2. Set Z-Order to 2 so this renders ABOVE the esp_player video stream (which is 0) and the color overlay
-    CHECK_RENDER(esp_video_render_stream_set_zorder, (overlay_stream, 2));
-
-    // Ensure the stream covers the whole screen
-    esp_video_render_rect_t disp_rect = { .x = 0, .y = 0, .width = width, .height = height };
-    CHECK_RENDER(esp_video_render_stream_set_disp_rect, (overlay_stream, &disp_rect));
-
-    // 3. Get the overlay handle attached to this new stream
-    esp_vui_overlay_handle_t overlay = NULL;
-    CHECK_RENDER(esp_video_render_stream_get_overlay, (overlay_stream, &overlay));
-    if (overlay == NULL) {
-        ESP_LOGE(TAG, "Failed to get overlay handle");
-        return ESP_VIDEO_RENDER_ERR_FAIL;
-    }
-
-    esp_video_render_frame_info_t container_info = {
+static esp_video_render_err_t create_video_text_overlay(esp_vui_overlay_handle_t overlay, uint16_t width, uint16_t height, const uint8_t* font_data, int font_data_len) {
+     esp_video_render_frame_info_t container_info = {
         .format = ESP_VIDEO_RENDER_FORMAT_RGB565,
         .width = width,
         .height = height,
@@ -468,7 +438,7 @@ static esp_video_render_err_t create_video_text_overlay(esp_video_render_handle_
     esp_video_render_clr_t fg = {.r = 255, .g = 255, .b = 255};  // White text
     CHECK_RENDER(esp_vui_text_widget_set_bg_color, (s_text_widget, &bg, false));
     CHECK_RENDER(esp_vui_text_widget_set_text_color, (s_text_widget, &fg));
-    CHECK_RENDER(esp_vui_text_widget_set_align, (s_text_widget, 1 /*center*/, 1 /*middle*/));
+    CHECK_RENDER(esp_vui_text_widget_set_align, (s_text_widget, 0 /*left*/, 1 /*middle*/));
     CHECK_RENDER(esp_vui_text_widget_set_overflow, (s_text_widget, 1 /*wrap*/));
 
     CHECK_RENDER(esp_vui_container_set_visible, (s_text_overlay_container, false));
@@ -534,11 +504,16 @@ static esp_player_err_t create_video_render(const video_render_settings_t *setti
              (unsigned)lcd_cfg->lcd_width, (unsigned)lcd_cfg->lcd_height,
              (uint32_t)lcd_backend_cfg.out_format);
 
-    if (create_video_color_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height) != ESP_VIDEO_RENDER_ERR_OK) {
+    esp_vui_overlay_handle_t overlay = NULL;
+    if (create_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height, &overlay) != ESP_VIDEO_RENDER_ERR_OK) {
         goto fail;
     }
 
-    if (create_video_text_overlay(render, lcd_cfg->lcd_width, lcd_cfg->lcd_height, font_data, font_data_len) != ESP_VIDEO_RENDER_ERR_OK) {
+    if (create_video_color_overlay(overlay, lcd_cfg->lcd_width, lcd_cfg->lcd_height) != ESP_VIDEO_RENDER_ERR_OK) {
+        goto fail;
+    }
+
+    if (create_video_text_overlay(overlay, lcd_cfg->lcd_width, lcd_cfg->lcd_height, font_data, font_data_len) != ESP_VIDEO_RENDER_ERR_OK) {
         goto fail;
     }
 

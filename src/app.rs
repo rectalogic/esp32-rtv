@@ -30,9 +30,11 @@ pub fn app() -> anyhow::Result<()> {
     )?;
 
     {
-        let message = format!("Provisioning WiFi for {SERVICE_NAME}");
-        video_player.display_text(Some(&message))?;
         let wifi_prov = WifiProvisioning::new()?;
+        if !wifi_prov.is_provisioned()? {
+            let message = format!("Provision WiFi for {SERVICE_NAME}");
+            video_player.display_text(Some(&message))?;
+        }
         wifi_prov.ensure_provisioned(&mut wifi)?;
         video_player.display_text(None)?;
     }
@@ -75,6 +77,11 @@ pub fn app() -> anyhow::Result<()> {
         if sdcard.is_ok() {
             videos = Some(find_videos("/sdcard/rtv")?);
         }
+
+        video_player.play("https://yellowfoot.us-west.host.bsky.network/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Azudaqq6xm46a62ogt6izag5c&cid=bafkreigmidpfzfbcxptbqjk5z6c6anfc32ifcjyzrs3y7ajemvli5vsnku#.mp4")?;
+        // video_player.play("http://192.168.1.239:8080/live/livestream.ts")?;
+        // video_player.play("http://192.168.1.239:8080/live/livestream.m3u8")?;
+        // video_player.play("https://stream.place/xrpc/place.stream.playback.getLivePlaylist?streamer=rectalogic.com")?;
 
         if let Some(mut videos) = videos {
             videos.sort();

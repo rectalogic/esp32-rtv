@@ -10,7 +10,7 @@ $ cargo xtask bmgr
 $ cargo build --release
 ```
 
-Building a LittleFS filesystem with embedded videos:
+Building a LittleFS filesystem with assets and embedded videos:
 ```sh-session
 $ cargo xtask embed path/to/videos
 ```
@@ -23,9 +23,9 @@ $ cargo +stable xtask flash embed
 
 # Encoding
 
-Encode `interstitial.mp4` static/snow video into videos path:
+To rebuild `assets/interstitial.mp4` static/snow video:
 ```sh-session
-$ cargo xtask encode path/to/videos interstitial
+$ cargo xtask encode assets/ interstitial
 ```
 
 Encode `my-video.avi` to `/path/to/videos/my-video.mp4`:
