@@ -57,6 +57,9 @@ enum EncodeCommands {
     Video {
         /// Source video to encode
         video_path: PathBuf,
+        /// Crop instead of letterbox
+        #[arg(short, long, default_value_t = false)]
+        crop: bool,
     },
 }
 
@@ -79,8 +82,8 @@ fn main() -> anyhow::Result<()> {
             output_directory,
         }) => match command {
             EncodeCommands::Interstitial => encode_interstitial(output_directory, &workspace_root),
-            EncodeCommands::Video { video_path } => {
-                encode_video(video_path, output_directory, &workspace_root)
+            EncodeCommands::Video { video_path, crop } => {
+                encode_video(video_path, *crop, output_directory, &workspace_root)
             }
         },
         Commands::Monitor => monitor(&workspace_root),
@@ -207,6 +210,7 @@ fn embed(videos_path: impl AsRef<Path>, workspace_root: impl AsRef<Path>) -> any
 
 fn encode_video(
     video_path: impl AsRef<Path>,
+    crop: bool,
     output_directory: impl AsRef<Path>,
     workspace_root: impl AsRef<Path>,
 ) -> anyhow::Result<()> {
@@ -216,23 +220,44 @@ fn encode_video(
     output_path = Path::new(output_directory.as_ref()).join(output_path.file_name().ok_or(
         anyhow::anyhow!("Invalid video path {}", output_path.display()),
     )?);
+    let video_filter = if crop {
+        "scale=320x240:force_original_aspect_ratio=increase:flags=lanczos,crop=320:240"
+    } else {
+        "scale=320x240:force_original_aspect_ratio=decrease:reset_sar=1:flags=lanczos,pad=320:240:(ow-iw)/2:(oh-ih)/2"
+    };
     let status = Command::new("ffmpeg")
         .current_dir(workspace_root.as_ref())
         .args([
             "-i",
-            video_path.to_str().ok_or(anyhow::anyhow!("Invalid video path {}", video_path.display()))?,
-            "-r", "15",
-            "-c:v", "libx264",
-            "-preset", "veryslow",
-            "-profile:v", "baseline",
-            "-level", "3.0",
-            "-c:a", "aac",
-            "-ar", "16000",
-            "-ac", "1",
-            "-vf", "scale=320x240:force_original_aspect_ratio=decrease:reset_sar=1:flags=lanczos,pad=320:240:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
-            "-movflags", "+faststart",
+            video_path.to_str().ok_or(anyhow::anyhow!(
+                "Invalid video path {}",
+                video_path.display()
+            ))?,
+            "-r",
+            "15",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryslow",
+            "-profile:v",
+            "baseline",
+            "-level",
+            "3.0",
+            "-c:a",
+            "aac",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-vf",
+            format!("{video_filter},format=yuv420p").as_str(),
+            "-movflags",
+            "+faststart",
             "-y",
-            output_path.to_str().ok_or(anyhow::anyhow!("Invalid output path {}", output_path.display()))?,
+            output_path.to_str().ok_or(anyhow::anyhow!(
+                "Invalid output path {}",
+                output_path.display()
+            ))?,
         ])
         .status()
         .context("`ffmpeg` failed")?;
