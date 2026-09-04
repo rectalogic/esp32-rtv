@@ -78,10 +78,7 @@ pub fn app() -> anyhow::Result<()> {
             videos = Some(find_videos("/sdcard/rtv")?);
         }
 
-        video_player.play("https://yellowfoot.us-west.host.bsky.network/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Azudaqq6xm46a62ogt6izag5c&cid=bafkreigmidpfzfbcxptbqjk5z6c6anfc32ifcjyzrs3y7ajemvli5vsnku#.mp4")?;
-        // video_player.play("http://192.168.1.239:8080/live/livestream.ts")?;
-        // video_player.play("http://192.168.1.239:8080/live/livestream.m3u8")?;
-        // video_player.play("https://stream.place/xrpc/place.stream.playback.getLivePlaylist?streamer=rectalogic.com")?;
+        video_player.play(env!("LIVESTREAM_URL"))?;
 
         if let Some(mut videos) = videos {
             videos.sort();
