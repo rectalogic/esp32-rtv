@@ -6,6 +6,15 @@ license.workspace = true
 publish = false
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 clap = { version = "4.6.6", features = ["derive"] }
-glob = { workspace = true }
+glob.workspace = true
+
+atrium-api.workspace = true
+atrium-identity.workspace = true
+atrium-common.workspace = true
+atrium-xrpc.workspace = true
+
+[target.'cfg(not(target_os = "espidf"))'.dependencies]
+atrium-xrpc-client.workspace = true
+tokio.workspace = true

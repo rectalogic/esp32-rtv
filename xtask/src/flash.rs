@@ -40,7 +40,7 @@ fn flash_embed(workspace_root: impl AsRef<Path>) -> anyhow::Result<()> {
             "write-bin",
             "--chip",
             "esp32s3",
-            "0x310000", // Must match partitions.csv littlefs partition offset, view with "espflash partition-table partitions.csv"
+            "0x410000", // Must match partitions.csv littlefs partition offset, view with "espflash partition-table partitions.csv"
             "target/littlefs.bin",
         ])
         .status()

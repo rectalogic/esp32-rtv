@@ -17,8 +17,10 @@ MCU = "esp32s3"
 ESP_IDF_VERSION = "branch:v5.5.3-http-patch"
 ESP_IDF_REPOSITORY = "https://github.com/rectalogic/esp-idf.git"
 
-# Override this when building if necessary
+# Override these when building if necessary
 LIVESTREAM_URL = "https://esp32.mediafx.org/live/livestream.ts"
+BSKY_HANDLE = "rectalogic.bsky.social"
+BSKY_PDS = "https://yellowfoot.us-west.host.bsky.network"
 
 # Uncomment this if you have moved the target dir by setting CARGO_TARGET_DIR or similar.
 # Required for now due to embuild limitations.

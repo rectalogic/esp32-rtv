@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use xtask::bsky::{BskyArgs, bsky};
 use xtask::{
     bmgr::bmgr,
     embed::embed,
@@ -37,6 +38,7 @@ enum Commands {
     Encode(EncodeArgs),
     /// Monitor device logs
     Monitor,
+    Bsky(BskyArgs),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -52,6 +54,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Embed { video_dir } => embed(video_dir, &workspace_root),
         Commands::Encode(encode_args) => encode(encode_args, &workspace_root),
         Commands::Monitor => monitor(&workspace_root),
+        Commands::Bsky(bsky_args) => bsky(bsky_args),
     }
 }
 

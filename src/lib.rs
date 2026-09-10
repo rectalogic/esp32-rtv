@@ -1,4 +1,5 @@
 pub mod app;
+mod bsky;
 mod input;
 mod littlefs;
 mod sdcard;

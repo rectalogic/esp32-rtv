@@ -8,7 +8,7 @@ pub fn embed(
     /// Hardcoded by the littlefs component: CONFIG_LITTLEFS_BLOCK_SIZE = 4096.
     const LITTLEFS_BLOCK_SIZE_BYTES: u64 = 4096;
     /// littlefs partition size (partitions.csv); the image must not exceed this.
-    const LITTLEFS_PARTITION_SIZE: u64 = 0xCF0000;
+    const LITTLEFS_PARTITION_SIZE: u64 = 0xBF0000;
 
     let littlefs_path = workspace_root.as_ref().join("target/littlefs");
     let _ = fs::remove_dir_all(&littlefs_path);

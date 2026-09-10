@@ -28,13 +28,24 @@ opt-level = "z"
 anyhow = "1.0.104"
 glob = "0.3.4"
 
+atrium-api = "0.25.8"
+atrium-identity = "0.1.9"
+atrium-common = "0.1.4"
+atrium-xrpc = "0.12.4"
+atrium-xrpc-client = { version = "0.5.15" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
 [dependencies]
 log = "0.4"
 esp-idf-svc = { version = "0.52.1", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }
 # Remove `generic-queue-8` if you plan to use `embassy-time` WITH `embassy-executor`
 embassy-time = { version = "0.5", features = ["generic-queue-8"] }
-anyhow = { workspace = true }
+anyhow.workspace = true
 thiserror = "2.0.19"
+
+atrium-xrpc.workspace = true
+atrium-api.workspace = true
+embedded-svc = "0.29.0"
 
 [build-dependencies]
 embuild = "0.33"
