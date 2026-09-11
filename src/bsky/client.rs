@@ -74,7 +74,6 @@ impl HttpClient for EspIdfXrpcClient {
         let connection = &mut guard.0;
         let mut client = embedded_svc::http::client::Client::wrap(&mut *connection);
 
-        log::info!("Send bsky request"); //XXX
         let mut request = client
             .request(method, &uri, &headers)
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
@@ -88,8 +87,6 @@ impl HttpClient for EspIdfXrpcClient {
         let mut response = request
             .submit()
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-
-        log::info!("Got bsky response"); //XXX
 
         let mut response_body = Vec::new();
         let mut buffer = [0; 4096];

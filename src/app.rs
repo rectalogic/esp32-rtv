@@ -1,4 +1,5 @@
 use crate::{
+    bsky,
     input::{ButtonEvent, UserInput},
     littlefs::Littlefs,
     sdcard::SdCard,
@@ -57,6 +58,11 @@ pub fn app() -> anyhow::Result<()> {
                 }
             }
         });
+
+        //XXX
+        if let Err(err) = bsky::sync_videos() {
+            log::error!("Bluesky sync failed: {err:#}");
+        }
 
         let mut interstitial = None;
         let mut videos = None;
