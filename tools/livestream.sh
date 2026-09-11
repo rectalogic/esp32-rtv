@@ -21,8 +21,9 @@ PID_DOCKER=$!
 
 # Wait for docker/srs to come up
 # List available devices: ffmpeg -f avfoundation -list_devices true -i ""
+# Camera info: ffmpeg -f avfoundation -i "1"  # device number
 sleep 5
-ffmpeg -f avfoundation -framerate 30 -video_size 640x480 -i ${FFMPEG_DEVICES:-0:1} -c:a aac -ar 16000 -ac 1 -c:v libx264 -r 15 -g 30 -keyint_min 30 -sc_threshold 0 -x264-params "keyint=30:min-keyint=30:scenecut=0" -preset ultrafast -profile:v baseline -level 3.0 -vf "scale=320x240:flags=bilinear,format=yuv420p" -f flv rtmp://localhost/live/livestream > "$LOG_DIR/ffmpeg.log" 2>&1 &
+ffmpeg -f avfoundation -framerate ${FFMPEG_FPS:-30} -video_size ${FFMPEG_SIZE:-640x480} -i ${FFMPEG_DEVICES:-0:1} -c:a aac -ar 16000 -ac 1 -c:v libx264 -r 15 -g 30 -keyint_min 30 -sc_threshold 0 -x264-params "keyint=30:min-keyint=30:scenecut=0" -preset ultrafast -profile:v baseline -level 3.0 -vf "scale=320x240:flags=bilinear,format=yuv420p" -f flv rtmp://localhost/live/livestream > "$LOG_DIR/ffmpeg.log" 2>&1 &
 PID_FFMPEG=$!
 
 tail -f "$LOG_DIR/srs.log" "$LOG_DIR/tunnel.log" "$LOG_DIR/ffmpeg.log"
