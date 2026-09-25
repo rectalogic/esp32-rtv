@@ -72,7 +72,7 @@ typedef struct {
     .out_sample_rate     = 16000,           \
     .out_bits_per_sample = 16,              \
     .out_channels        = 1,               \
-    .video_fps           = 30,              \
+    .video_fps           = 15,              \
 }
 
 static void destroy_audio_render(void);

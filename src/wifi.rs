@@ -1,10 +1,11 @@
 use esp_idf_svc::{
     sys::{
-        EspError, esp, wifi_prov_event_handler_t, wifi_prov_mgr_config_t, wifi_prov_mgr_deinit,
-        wifi_prov_mgr_init, wifi_prov_mgr_is_provisioned, wifi_prov_mgr_reset_provisioning,
-        wifi_prov_mgr_start_provisioning, wifi_prov_mgr_stop_provisioning, wifi_prov_mgr_wait,
-        wifi_prov_scheme_ble, wifi_prov_scheme_ble_event_cb_free_btdm,
-        wifi_prov_security_WIFI_PROV_SECURITY_1, wifi_prov_security_t,
+        EspError, esp, network_prov_event_handler_t, network_prov_mgr_config_t,
+        network_prov_mgr_deinit, network_prov_mgr_init, network_prov_mgr_is_wifi_provisioned,
+        network_prov_mgr_reset_wifi_provisioning, network_prov_mgr_start_provisioning,
+        network_prov_mgr_stop_provisioning, network_prov_mgr_wait, network_prov_scheme_ble,
+        network_prov_scheme_ble_event_cb_free_btdm, network_prov_security_NETWORK_PROV_SECURITY_1,
+        network_prov_security_t,
     },
     wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi},
 };
@@ -17,15 +18,15 @@ pub struct WifiProvisioning(());
 impl WifiProvisioning {
     pub fn new() -> Result<Self, EspError> {
         unsafe {
-            let config = wifi_prov_mgr_config_t {
-                scheme: wifi_prov_scheme_ble,
-                scheme_event_handler: wifi_prov_event_handler_t {
-                    event_cb: Some(wifi_prov_scheme_ble_event_cb_free_btdm),
+            let config = network_prov_mgr_config_t {
+                scheme: network_prov_scheme_ble,
+                scheme_event_handler: network_prov_event_handler_t {
+                    event_cb: Some(network_prov_scheme_ble_event_cb_free_btdm),
                     user_data: ptr::null_mut(),
                 },
                 ..Default::default()
             };
-            esp!(wifi_prov_mgr_init(config))?;
+            esp!(network_prov_mgr_init(config))?;
         }
         Ok(WifiProvisioning(()))
     }
@@ -34,7 +35,7 @@ impl WifiProvisioning {
         if !self.is_provisioned()? {
             wifi.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
             wifi.start()?;
-            self.start_provisioning(wifi_prov_security_WIFI_PROV_SECURITY_1, SERVICE_NAME)?;
+            self.start_provisioning(network_prov_security_NETWORK_PROV_SECURITY_1, SERVICE_NAME)?;
             self.wait();
             self.stop();
         } else {
@@ -50,12 +51,12 @@ impl WifiProvisioning {
 
     fn start_provisioning(
         &self,
-        security: wifi_prov_security_t,
+        security: network_prov_security_t,
         service_name: &str,
     ) -> Result<(), EspError> {
         let service_name = CString::new(service_name).unwrap();
         unsafe {
-            esp!(wifi_prov_mgr_start_provisioning(
+            esp!(network_prov_mgr_start_provisioning(
                 security,
                 ptr::null(),
                 service_name.as_ptr(),
@@ -67,31 +68,31 @@ impl WifiProvisioning {
 
     fn wait(&self) {
         unsafe {
-            wifi_prov_mgr_wait();
+            network_prov_mgr_wait();
         }
     }
 
     pub fn is_provisioned(&self) -> Result<bool, EspError> {
         let mut provisioned: bool = false;
-        esp!(unsafe { wifi_prov_mgr_is_provisioned(&mut provisioned) })?;
+        esp!(unsafe { network_prov_mgr_is_wifi_provisioned(&mut provisioned) })?;
         Ok(provisioned)
     }
 
     fn stop(&self) {
         unsafe {
-            wifi_prov_mgr_stop_provisioning();
+            network_prov_mgr_stop_provisioning();
         }
     }
 
     fn reset(&self) -> Result<(), EspError> {
-        esp!(unsafe { wifi_prov_mgr_reset_provisioning() })
+        esp!(unsafe { network_prov_mgr_reset_wifi_provisioning() })
     }
 }
 
 impl Drop for WifiProvisioning {
     fn drop(&mut self) {
         unsafe {
-            wifi_prov_mgr_deinit();
+            network_prov_mgr_deinit();
         }
     }
 }

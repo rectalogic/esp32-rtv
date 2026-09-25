@@ -4,7 +4,7 @@ devices:
     type: power_ctrl
     sub_type: gpio
     peripherals:
-      - name: gpio_lcd_backlight
+      - gpio_name: gpio_lcd_backlight
         active_level: 1
 
   # Audio Amplifier Power Control (GPIO1)
@@ -12,7 +12,7 @@ devices:
     type: power_ctrl
     sub_type: gpio
     peripherals:
-      - name: gpio_audio_amp
+      - gpio_name: gpio_audio_amp
         active_level: 0
 
   # LCD Display (ILI9341)
@@ -22,7 +22,7 @@ devices:
     chip: ili9341
     power_ctrl_device: lcd_backlight
     dependencies:
-      espressif/esp_lcd_ili9341: "^1"
+      espressif/esp_lcd_ili9341: "^2"
     config:
       x_max: 240
       y_max: 320
@@ -42,7 +42,7 @@ devices:
         bits_per_pixel: 16
         rgb_ele_order: LCD_RGB_ELEMENT_ORDER_BGR
     peripherals:
-      - name: spi_lcd
+      - spi_name: spi_lcd
 
   # Capacitive Touch (FT6336G)
   - name: lcd_touch
@@ -70,7 +70,7 @@ devices:
           mirror_x: true
           mirror_y: true
     peripherals:
-      - name: i2c_shared
+      - i2c_name: i2c_shared
         i2c_addr: [0x38]
 
   # Embedded Video Storage (LittleFS on flash, memory-mapped for cache-friendly reads)
@@ -117,13 +117,12 @@ devices:
     config:
       adc_enabled: false
       dac_enabled: true
-      mclk_enabled: true
-      dac_max_channel: 2
-      dac_channel_mask: "11"
+      sys_cfg:
+        no_mclk: false
     peripherals:
-      - name: i2c_shared
+      - i2c_name: i2c_shared
         address: 0x30
-      - name: i2s_audio
+      - i2s_name: i2s_audio
         clk_src: 0
 
   # Audio Codec (ES8311) - ADC (Input)
@@ -135,13 +134,12 @@ devices:
     config:
       adc_enabled: true
       dac_enabled: false
-      mclk_enabled: true
-      adc_max_channel: 1
-      adc_channel_mask: "1"
+      sys_cfg:
+        no_mclk: false
     peripherals:
-      - name: i2c_shared
+      - i2c_name: i2c_shared
         address: 0x30
-      - name: i2s_audio
+      - i2s_name: i2s_audio
         clk_src: 0
 
   # Onboard WS2812 RGB LED
@@ -162,4 +160,4 @@ devices:
     config:
       active_level: 0
     peripherals:
-      - name: gpio_button_io_0
+      - gpio_name: gpio_button_io_0
