@@ -11,11 +11,8 @@ build-std = ["std", "panic_abort"]
 
 [env]
 MCU = "esp32s3"
-# ESP_IDF_VERSION = "v5.5.3"
-# ESP_IDF_TOOLS_INSTALL_DIR = "workspace"
-# Cherry pick https://github.com/espressif/esp-idf/commit/edb3f9daf1ee605d30711f306e07738e0ddbdcdc onto v5.5.3 tag
-ESP_IDF_VERSION = "branch:v5.5.3-http-patch"
-ESP_IDF_REPOSITORY = "https://github.com/rectalogic/esp-idf.git"
+ESP_IDF_VERSION = "v6.1"
+ESP_IDF_TOOLS_INSTALL_DIR = "workspace"
 
 # Override this when building if necessary
 LIVESTREAM_URL = "https://esp32.mediafx.org/live/livestream.ts"
