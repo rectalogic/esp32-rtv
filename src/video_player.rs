@@ -26,9 +26,9 @@ impl VideoPlayer {
         }
     }
 
-    pub fn play(&self, url: &str) -> Result<Status, Error> {
+    pub fn play(&self, url: &str, disable_buffering: bool) -> Result<Status, Error> {
         let c_url = CString::new(url).map_err(|_| Error::InvalidArg)?;
-        esp_err_to_result(unsafe { play_url(c_url.as_ptr()) })
+        esp_err_to_result(unsafe { play_url(c_url.as_ptr(), disable_buffering) })
     }
 
     pub fn hilite_video(&self, hilite: bool) -> Result<(), EspError> {

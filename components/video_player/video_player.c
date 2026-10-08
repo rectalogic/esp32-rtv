@@ -34,6 +34,7 @@
 #include "esp_gmf_video_ppa.h"
 #endif  /* CONFIG_IDF_TARGET_ESP32P4 || CONFIG_IDF_TARGET_ESP32S31 */
 #include "esp_player.h"
+#include "esp_player_advance.h"
 #include "video_player.h"
 
 static const char *TAG = "VIDEO_PLAYER";
@@ -649,7 +650,7 @@ esp_player_err_t initialize_video_system(const uint8_t* font_data, int font_data
         return ret;
 }
 
-esp_player_err_t play_url(const char* url) {
+esp_player_err_t play_url(const char* url, bool disable_buffering) {
     if (s_player == NULL) {
         ESP_LOGE(TAG, "Initialize video system first");
         return ESP_PLAYER_ERR_FAIL;
@@ -660,6 +661,14 @@ esp_player_err_t play_url(const char* url) {
         ESP_LOGE(TAG, "Stop failed: %d", ret);
         return ret;
     }
+    esp_player_buffer_config_t buffer_cfg = {
+        .disable_network_buffering = disable_buffering,
+    };
+    if ((ret = esp_player_set_buffer_config(s_player, disable_buffering ? &buffer_cfg : NULL)) != ESP_PLAYER_ERR_OK) {
+        ESP_LOGE(TAG, "Set buffer config failed: %d", ret);
+        return ret;
+    }
+
     esp_player_data_src_t src = ESP_PLAYER_DATA_SRC(url, ESP_PLAYER_MASK_AV);
     if ((ret = esp_player_set_data_src(s_player, &src)) != ESP_PLAYER_ERR_OK) {
         ESP_LOGE(TAG, "Set URL failed: %d", ret);

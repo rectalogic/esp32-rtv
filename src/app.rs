@@ -78,14 +78,14 @@ pub fn app() -> anyhow::Result<()> {
             videos = Some(find_videos("/sdcard/rtv")?);
         }
 
-        video_player.play(env!("LIVESTREAM_URL"))?;
+        video_player.play(env!("LIVESTREAM_URL"), true)?;
 
         if let Some(mut videos) = videos {
             videos.sort();
             for video in videos.into_iter().cycle() {
-                video_player.play(&video)?;
+                video_player.play(&video, false)?;
                 if let Some(interstitial) = interstitial {
-                    video_player.play(interstitial)?;
+                    video_player.play(interstitial, false)?;
                 }
             }
         }
